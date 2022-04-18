@@ -4,7 +4,7 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
-void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
+static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
     int mat_size = W_in * H_in;
     int f_size = W_f * H_f;
@@ -56,7 +56,7 @@ void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int 
     }
 }
 
-void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int C_out)
+static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int C_out)
 {
     int mat_size = W_in * H_in;
     int img_size = mat_size * C_in;
@@ -99,7 +99,7 @@ void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int 
     }
 }
 
-void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
+static void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
 {
     int temp_out_img_size = W_out * H_out;
     int temp_out_size = temp_out_img_size * N_dw * C_in;
@@ -107,8 +107,4 @@ void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in,
 
     dw_conv(X, F_DW, depthwise_output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
     pw_conv(depthwise_output, F_1D, O, B, H_out, W_out, C_in * N_dw, C_out);
-}
-
-int main() {
-    return 0;
 }
