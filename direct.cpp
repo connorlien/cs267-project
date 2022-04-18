@@ -1,0 +1,116 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
+
+void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
+{
+    int mat_size = W_in * H_in;
+    int f_size = W_f * H_f;
+    int img_size = mat_size * C_in;
+
+    int temp_out_img_size = W_out * H_out;
+    int temp_out_size = temp_out_img_size * N_dw * C_in;
+
+    for (int b = 0; b < B; b += 1)
+    {
+        // PTRS TO IMG IN BATCH
+        double *curr_img = X + b * img_size;
+        double *curr_out = O + b * temp_out_size;
+        for (int c = 0; c < C_in; c += 1)
+        {
+            // Do 2D Convolution channelwise
+            double *curr_channel = curr_img + mat_size * c;
+            // Filters are 2D
+            for (int f = 0; f < N_dw; f += 1)
+            {
+                for (int w = 0; w < W_out; w += 1)
+                {
+                    for (int h = 0; h < H_out; h += 1)
+                    {
+                        // MICROKERNEL - tile if needed.
+                        for (int w_f = 0; w_f < W_f; w_f += 1)
+                        {
+                            for (int h_f = 0; h_f < H_f; h_f += 1)
+                            {
+                                // PTR TO CURRENT POSITION IN FILTER
+                                double *f_curr = F_DW + f_size * (c * N_dw + f) + row_major(h_f, w_f, W_f);
+
+                                // PTR TO INPUT POSITION
+                                int h_curr = h_f + stride_h * h;
+                                int w_curr = w_f + stride_w * w;
+                                double *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
+
+                                // PTR TO INPUT POSITION
+                                double *curr_out_xy = curr_out + temp_out_img_size * (c * N_dw + f) + row_major(h, w, W_out);
+
+                                // CONVOLVE
+                                *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int C_out)
+{
+    int mat_size = W_in * H_in;
+    int f_size = W_f * H_f;
+    int img_size = mat_size * C_in;
+
+    int temp_out_img_size = W_out * H_out;
+    int temp_out_size = temp_out_img_size * C_in;
+
+    for (int b = 0; b < B; b += 1)
+    {
+        // PTRS TO IMG IN BATCH
+        double *curr_img = X + b * img_size;
+        double *curr_out = O + b * temp_out_size;
+        
+        for (int c = 0; c < C_in; c += 1)
+        {
+            for (int f = 0; f < C_out; k += 1)
+            {
+                // Do 2D Convolution channelwise
+                double *curr_channel = curr_img + C_in * c;
+
+                // Filters are 2D
+                for (int w = 0; w < W_out; w += 1)
+                {
+                    for (int h = 0; h < H_out; h += 1)
+                    {
+                        // MICROKERNEL - tile if needed.
+                        for (int w_f = 0; w_f < W_f; w_f += 1)
+                        {
+                            for (int h_f = 0; h_f < H_f; h_f += 1)
+                            {
+                                // PTR TO CURRENT POSITION IN FILTER
+                                double *f_curr = F_DW + f_size * (c * N_dw + k) + row_major(h_f, w_f, W_f);
+
+                                // PTR TO INPUT POSITION
+                                int h_curr = h_f + stride_h * h;
+                                int w_curr = w_f + stride_w * w;
+                                double *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
+
+                                // PTR TO INPUT POSITION
+                                double *curr_out_xy = curr_out + temp_out_img_size * (c * N_dw + k) + row_major(h, w, W_out);
+
+                                // CONVOLVE
+                                *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
+{
+    double *depthwise_output = (double *)calloc(B * temp_out_size, sizeof(double));
+}
