@@ -19,7 +19,7 @@ target_compile_features(benchmark PRIVATE cxx_std_11)
 
 foreach (BENCHMARK IN ITEMS direct)
     # Create benchmarking executable
-    add_executable(benchmark-${BENCHMARK} dws-${BENCHMARK}.cpp)
+    add_executable(benchmark-${BENCHMARK} dws-${BENCHMARK}.c)
     target_link_libraries(benchmark-${BENCHMARK} PRIVATE benchmark ${BLAS_LIBRARIES})
     target_compile_features(benchmark-${BENCHMARK} PRIVATE c_std_11 c_restrict)
     target_compile_options(benchmark-${BENCHMARK} PRIVATE -Wall -pedantic -march=knl)
