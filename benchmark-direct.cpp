@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 #include <random>
 #include <vector>
 #include <cmath>
@@ -19,6 +20,13 @@ extern "C" {
 // Helper Functions
 // =================
 // I/O routines
+void save_tensor(std::ofstream& fsave, double *tensor, int size, const char *name) {
+    fsave << name << std::endl;
+    for (int i = 0; i < size; ++i) {
+        fsave << tensor[i] << " ";
+    }
+    fsave << std::endl;
+}
 
 
 // Command Line Option Processing
@@ -55,9 +63,9 @@ char* find_string_option(int argc, char** argv, const char* option, char* defaul
 void fill(double* p, int n, int seed) {
     static std::random_device rd;
     static std::default_random_engine gen(seed ? seed : rd());
-    static std::uniform_real_distribution<> dis(-10.0, 10.0);
+    static std::uniform_real_distribution<> dis(-1.0, 1.0);
     for (int i = 0; i < n; ++i)
-        p[i] = 2 * dis(gen) - 1;
+        p[i] = dis(gen);
 }
 
 void fillDet(double* p, int n){
@@ -114,8 +122,8 @@ int main(int argc, char** argv) {
     int correctness = find_int_arg(argc, argv, "-correctness", 0);
     int seed = find_int_arg(argc, argv, "-s", 0);
 
-    // char* savename = find_string_option(argc, argv, "-o", nullptr);
-    // std::ofstream fsave(savename);
+    char* savename = find_string_option(argc, argv, "-o", nullptr);
+    std::ofstream fsave(savename);
 
     int B = find_int_arg(argc, argv, "-B", 10);
     int C_in = find_int_arg(argc, argv, "-C_in", 3);
@@ -159,6 +167,15 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Output after \n");
         printTensor(output, B, W_out, H_out, C_out);
         fprintf(stderr, "----- \n");
+    }
+
+    if (fsave) {
+        fsave << B << " " << H_in  << " " << W_in  << " " << C_in  << " " << H_f << " " << W_f << " " << N_dw  << " " << H_out  << " " << W_out  << " " << C_out  << " " << stride_h  << " " << stride_w  << std::endl;
+        save_tensor(fsave, input, B * C_in * W_in * H_in, "Input");
+        save_tensor(fsave, F_DW, N_dw * C_in * H_f * W_f, "Filter-depthwise");
+        save_tensor(fsave, F_1D, N_1d * C_in * N_dw, "Filter-1D");
+        save_tensor(fsave, output, B * C_out * W_out * H_out, "Output");
+        fsave.close();
     }
 
     return 0;
