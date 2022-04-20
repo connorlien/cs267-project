@@ -56,8 +56,9 @@ void fill(double* p, int n, int seed) {
     static std::random_device rd;
     static std::default_random_engine gen(seed ? seed : rd());
     static std::uniform_real_distribution<> dis(-10.0, 10.0);
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < n; ++i) {
         p[i] = 2 * dis(gen) - 1;
+    }
 }
 
 void fillDet(double* p, int n){
@@ -105,6 +106,93 @@ void printTensor(double* p, int B, int W, int H, int C) {
     }
 }
 
+void benchmark(bool all_sizes = false) {
+    std::vector<int> tensor_sizes;
+    std::vector<int> kernel_sizes{3, 5, 7};
+    if (all_sizes) {
+        tensor_sizes.assign({ 
+            31,  32,  33,  63,  64,  65,  95,  96,  97,  127, 128, 129, 159, 160, 
+            161, 191, 192, 193, 223, 224, 225, 255, 256, 257, 287, 288, 289, 319, 
+            320, 321, 351, 352, 353, 383, 384, 385, 415, 416, 417, 447, 448, 449,
+            479, 480, 481, 511, 512, 513, 543, 544, 545, 575, 576, 577, 607, 608,
+            609, 639, 640, 641, 671, 672, 673, 703, 704, 705, 735, 736, 737, 767,
+            768, 769, 799, 800, 801, 831, 832, 833, 863, 864, 865, 895, 896, 897,
+            927, 928, 929, 959, 960, 961, 991, 992, 993, 1023, 1024, 1025 
+        });
+    } else {
+        tensor_sizes.assign({
+            31,  32,  96,  97,  127, 128, 129, 191, 192, 229, 255, 256, 257,
+            319, 320, 321, 417, 479, 480, 511, 512, 639, 640, 767, 768, 769
+        });
+    }
+
+    std::sort(tensor_sizes.begin(), tensor_sizes.end());
+
+    int nsizes = tensor_sizes.size();
+
+    /* assume last size is also the largest size */
+    int nmax = tensor_sizes[nsizes - 1];
+
+    /* allocate memory for all problems */
+    std::vector<double> buf(3 * nmax * nmax);
+
+    /* For each test size */
+    for (int n : tensor_sizes) {
+        /* Allocate space to run test. */
+        int seed = 0;
+        int B = 10;
+        int C_in = 3;
+        int W_in = 4;
+        int H_in = 4;
+        double* input = (double *) calloc(B * C_in * W_in * H_in, sizeof(double));
+        fill(input, B * C_in * W_in * H_in, seed);
+
+        int C_out = 3;
+        int W_out = 2;
+        int H_out = 2;
+        double* output = (double *) calloc(B * C_out * W_out * H_out, sizeof(double));
+
+        int N_dw = 3;
+        int H_f = 2;
+        int W_f = 2;
+        double* F_DW = (double *) calloc(N_dw * C_in * H_f * W_f, sizeof(double));
+        fill(F_DW, N_dw * C_in * H_f * W_f, seed);
+
+        int N_1d = C_out;
+        double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
+        fill(F_1D, N_1d * C_in * N_dw, seed);
+
+        int stride_h = 2;
+        int stride_w = 2;
+
+        /* Time a "sufficiently long" sequence of calls to reduce noise */
+        double avg_time = 0.0, seconds = -1.0;
+        double timeout = 0.1; // "sufficiently long" := at least 1/10 second.
+        for (int n_iterations = 1; seconds < timeout; n_iterations *= 2) {
+            /* Warm-up */
+            dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f,
+                            N_dw, H_out, W_out, C_out, stride_h, stride_w);
+
+            /* Benchmark n_iterations runs of square_dgemm */
+            auto start = std::chrono::steady_clock::now();
+            for (int it = 0; it < n_iterations; ++it) {
+                dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f,
+                                N_dw, H_out, W_out, C_out, stride_h, stride_w);
+            }
+            auto end = std::chrono::steady_clock::now();
+            std::chrono::duration<double> diff = end - start;
+            seconds = diff.count();
+
+            /*  compute average time */
+            avg_time = seconds / n_iterations;
+        }
+
+        std::cout << "Tensor Size: " << n
+                  << "\tTime: " << avg_time
+                  << std::endl;
+    }
+}
+
 /* The benchmarking program */
 // double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
 int main(int argc, char** argv) {
@@ -123,7 +211,6 @@ int main(int argc, char** argv) {
     int H_in = find_int_arg(argc, argv, "-H_in", 4);
     double* input = (double *) calloc(B * C_in * W_in * H_in, sizeof(double));
     fill(input, B * C_in * W_in * H_in, seed);
-    
 
     int C_out = find_int_arg(argc, argv, "-C_out", 3);
     int W_out = find_int_arg(argc, argv, "-W_out", 2);

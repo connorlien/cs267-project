@@ -51,3 +51,5 @@ Thumbs.db
 # Build files.
 cmake-build-debug
 build
+
+.vscode
