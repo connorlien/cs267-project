@@ -116,21 +116,18 @@ void printTensor(double* p, int B, int W, int H, int C) {
 
 void benchmark(bool all_sizes = false) {
     std::vector<int> tensor_sizes;
-    std::vector<int> kernel_sizes{3, 5, 7};
+    std::vector<int> kernel_sizes{2, 3, 5, 7};
     if (all_sizes) {
         tensor_sizes.assign({ 
-            31,  32,  33,  63,  64,  65,  95,  96,  97,  127, 128, 129, 159, 160, 
-            161, 191, 192, 193, 223, 224, 225, 255, 256, 257, 287, 288, 289, 319, 
-            320, 321, 351, 352, 353, 383, 384, 385, 415, 416, 417, 447, 448, 449,
-            479, 480, 481, 511, 512, 513, 543, 544, 545, 575, 576, 577, 607, 608,
-            609, 639, 640, 641, 671, 672, 673, 703, 704, 705, 735, 736, 737, 767,
-            768, 769, 799, 800, 801, 831, 832, 833, 863, 864, 865, 895, 896, 897,
-            927, 928, 929, 959, 960, 961, 991, 992, 993, 1023, 1024, 1025 
+            4, 8, 16, 31,  32,  33,  63,  64,  65,  95,  96,  97,  127, 128, 129, 
+            159, 160, 161, 191, 192, 193, 223, 224, 225, 255, 256, 257, 287, 288, 
+            289, 319, 320, 321, 351, 352, 353, 383, 384, 385, 415, 416, 417, 447, 
+            448, 449, 479, 480, 481, 511, 512
         });
     } else {
         tensor_sizes.assign({
             31,  32,  96,  97,  127, 128, 129, 191, 192, 229, 255, 256, 257,
-            319, 320, 321, 417, 479, 480, 511, 512, 639, 640, 767, 768, 769
+            319, 320, 321, 417, 479, 480, 511, 512
         });
     }
 
@@ -141,72 +138,75 @@ void benchmark(bool all_sizes = false) {
     /* assume last size is also the largest size */
     int nmax = tensor_sizes[nsizes - 1];
 
-    /* allocate memory for all problems */
-    std::vector<double> buf(3 * nmax * nmax);
+    /* Set a seed. */
+    int seed = 0;
 
-    /* For each test size */
+    fprintf(stderr, "Starting benchmarking...\n");
+
+    /* For each tensor size */
     for (int n : tensor_sizes) {
-        /* Allocate space to run test. */
-        int seed = 0;
-        int B = 10;
-        int C_in = 3;
-        int W_in = 4;
-        int H_in = 4;
-        double* input = (double *) calloc(B * C_in * W_in * H_in, sizeof(double));
-        fill(input, B * C_in * W_in * H_in, seed);
+        /* For each kernel size */
+        for (int k : kernel_sizes) {
+            /* Allocate space to run test. */
+            int B = 10;
+            int C_in = 3;
+            int W_in = n;
+            int H_in = n;
+            double* input = (double *) calloc(B * C_in * W_in * H_in, sizeof(double));
+            fill(input, B * C_in * W_in * H_in, seed);
 
-        int C_out = 3;
-        int W_out = 2;
-        int H_out = 2;
-        double* output = (double *) calloc(B * C_out * W_out * H_out, sizeof(double));
+            int stride_h = 2;
+            int stride_w = 2;
 
-        int N_dw = 3;
-        int H_f = 2;
-        int W_f = 2;
-        double* F_DW = (double *) calloc(N_dw * C_in * H_f * W_f, sizeof(double));
-        fill(F_DW, N_dw * C_in * H_f * W_f, seed);
+            int N_dw = 3;
+            int H_f = k;
+            int W_f = k;
+            double* F_DW = (double *) calloc(N_dw * C_in * H_f * W_f, sizeof(double));
+            fill(F_DW, N_dw * C_in * H_f * W_f, seed);
 
-        int N_1d = C_out;
-        double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
-        fill(F_1D, N_1d * C_in * N_dw, seed);
+            int N_1d = 3;
+            double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
+            fill(F_1D, N_1d * C_in * N_dw, seed);
 
-        int stride_h = 2;
-        int stride_w = 2;
+            int C_out = 3;
+            int W_out = floor((W_in - W_f) / stride_w + 1);
+            int H_out = floor((H_in - H_f) / stride_h + 1);
+            double* output = (double *) calloc(B * C_out * W_out * H_out, sizeof(double));
 
-        /* Time a "sufficiently long" sequence of calls to reduce noise */
-        double avg_time = 0.0, seconds = -1.0;
-        double timeout = 0.1; // "sufficiently long" := at least 1/10 second.
-        for (int n_iterations = 1; seconds < timeout; n_iterations *= 2) {
-            /* Warm-up */
-            dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f,
-                            N_dw, H_out, W_out, C_out, stride_h, stride_w);
-
-            /* Benchmark n_iterations runs of square_dgemm */
-            auto start = std::chrono::steady_clock::now();
-            for (int it = 0; it < n_iterations; ++it) {
+            /* Time a "sufficiently long" sequence of calls to reduce noise */
+            double avg_time = 0.0, seconds = -1.0;
+            double timeout = 0.1; // "sufficiently long" := at least 1/10 second.
+            for (int n_iterations = 1; seconds < timeout; n_iterations *= 2) {
+                /* Warm-up */
                 dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f,
                                 N_dw, H_out, W_out, C_out, stride_h, stride_w);
+
+                /* Benchmark n_iterations runs of square_dgemm */
+                auto start = std::chrono::steady_clock::now();
+                for (int it = 0; it < n_iterations; ++it) {
+                    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f,
+                                    N_dw, H_out, W_out, C_out, stride_h, stride_w);
+                }
+                auto end = std::chrono::steady_clock::now();
+                std::chrono::duration<double> diff = end - start;
+                seconds = diff.count();
+
+                /*  compute average time */
+                avg_time = seconds / n_iterations;
             }
-            auto end = std::chrono::steady_clock::now();
-            std::chrono::duration<double> diff = end - start;
-            seconds = diff.count();
 
-            /*  compute average time */
-            avg_time = seconds / n_iterations;
+            std::cout << "Tensor Size: " << n
+                    << "\tKernel Size: " << k
+                    << "\tTime: " << avg_time
+                    << std::endl;
         }
-
-        std::cout << "Tensor Size: " << n
-                  << "\tTime: " << avg_time
-                  << std::endl;
     }
 }
 
-/* The benchmarking program */
-// double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
-int main(int argc, char** argv) {
+void run(int argc, char** argv) {
     std::cout << std::fixed << std::setprecision(2);
 
-    int debug = find_int_arg(argc, argv, "-debug", 0);
+    int debug = find_int_arg(argc, argv, "-debug", 1);
     int correctness = find_int_arg(argc, argv, "-correctness", 0);
     int seed = find_int_arg(argc, argv, "-s", 0);
 
@@ -264,6 +264,12 @@ int main(int argc, char** argv) {
         save_tensor(fsave, output, B * C_out * W_out * H_out, "Output");
         fsave.close();
     }
+}
 
+/* The benchmarking program */
+// double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
+int main(int argc, char** argv) {
+    run(argc, argv);
+    // benchmark();
     return 0;
 }
