@@ -274,7 +274,12 @@ void run(int argc, char** argv) {
 /* The benchmarking program */
 // double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
 int main(int argc, char** argv) {
-    // run(argc, argv);
-    benchmark();
+    int bench = find_int_arg(argc, argv, "-benchmark", 0);
+    if (bench == 1) {
+        bool all_sizes = find_int_arg(argc, argv, "-all", 0) == 1;
+        benchmark(all_sizes);
+    } else {
+        run(argc, argv);
+    }
     return 0;
 }
