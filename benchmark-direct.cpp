@@ -13,7 +13,7 @@
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
 extern "C" {
-    extern void dws_conv(double*, double*, double*, double*, int, int, int, int, int, int, int, int, int, int, int, int);
+    extern void dws_conv(double*, double*, double*, double*, int, int, int, int, int, int, int, int, int, int, int, int, double*);
 }
 
 // =================
@@ -165,6 +165,7 @@ void benchmark(bool all_sizes = false) {
     double* F_DW = (double *) calloc(N_dw * C_in * kmax * kmax, sizeof(double));
     double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
     double* output = (double *) calloc(B * C_out * nmax * nmax, sizeof(double));
+    double *depthwise_output = (double *)calloc(B * nmax * nmax * C_in * N_dw, sizeof(double));
 
     /* For each tensor size */
     for (int n : tensor_sizes) {
@@ -187,12 +188,12 @@ void benchmark(bool all_sizes = false) {
             double timeout = 0.1; // "sufficiently long" := at least 1/10 second.
             for (int n_iterations = 1; seconds < timeout; n_iterations *= 2) {
                 /* Warm-up */
-                dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w);
+                dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
 
                 /* Benchmark n_iterations runs of square_dgemm */
                 auto start = std::chrono::steady_clock::now();
                 for (int it = 0; it < n_iterations; ++it) {
-                    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w);
+                    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
                 }
                 auto end = std::chrono::steady_clock::now();
                 std::chrono::duration<double> diff = end - start;
@@ -238,6 +239,7 @@ void run(int argc, char** argv) {
     double* F_DW = (double *) calloc(N_dw * C_in * H_f * W_f, sizeof(double));
     double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
     double* output = (double *) calloc(B * C_out * W_out * H_out, sizeof(double));
+    double *depthwise_output = (double *)calloc(B * W_out * H_out * C_in * N_dw, sizeof(double));
 
     fill(input, B * C_in * W_in * H_in, seed);
     fill(F_DW, N_dw * C_in * H_f * W_f, seed);
@@ -253,7 +255,7 @@ void run(int argc, char** argv) {
         // TODO: PRINT FILTERS
     }
 
-    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w);
+    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
 
     if (debug != 0) {
         fprintf(stderr, "Output after \n");
@@ -271,8 +273,6 @@ void run(int argc, char** argv) {
     }
 }
 
-/* The benchmarking program */
-// double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w)
 int main(int argc, char** argv) {
     int bench = find_int_arg(argc, argv, "-benchmark", 0);
     if (bench == 1) {
