@@ -141,7 +141,7 @@ void benchmark(bool all_sizes = false) {
     /* Set a seed. */
     int seed = 0;
 
-    fprintf(stderr, "Starting benchmarking...\n");
+    fprintf(stdout, "Starting benchmarking...\n");
 
     /* Set default variables and allocate space. */
     int B = 10;
@@ -202,7 +202,7 @@ void benchmark(bool all_sizes = false) {
                 avg_time = seconds / n_iterations;
             }
 
-            fprintf(stderr, "Tensor Size: %d  \tKernel Size: %d\tTime: %f s\n", n , k, avg_time);
+            fprintf(stdout, "Tensor Size: %d  \tKernel Size: %d\tTime: %f s\n", n , k, avg_time);
         }
     }
 }
@@ -210,14 +210,14 @@ void benchmark(bool all_sizes = false) {
 void run(int argc, char** argv) {
     std::cout << std::fixed << std::setprecision(2);
 
-    int debug = find_int_arg(argc, argv, "-debug", 1);
+    int debug = find_int_arg(argc, argv, "-debug", 0);
     int correctness = find_int_arg(argc, argv, "-correctness", 0);
     int seed = find_int_arg(argc, argv, "-s", 0);
 
     char* savename = find_string_option(argc, argv, "-o", nullptr);
     std::ofstream fsave(savename);
 
-    int B = find_int_arg(argc, argv, "-B", 10);
+    int B = find_int_arg(argc, argv, "-B", 2);
     int C_in = find_int_arg(argc, argv, "-C_in", 3);
     int W_in = find_int_arg(argc, argv, "-W_in", 4);
     int H_in = find_int_arg(argc, argv, "-H_in", 4);
@@ -226,7 +226,7 @@ void run(int argc, char** argv) {
     int W_out = find_int_arg(argc, argv, "-W_out", 2);
     int H_out = find_int_arg(argc, argv, "-H_out", 2);
     
-    int N_dw = find_int_arg(argc, argv, "-N_dw", 3);
+    int N_dw = find_int_arg(argc, argv, "-N_dw", 1); // FOR TESTING.
     int H_f = find_int_arg(argc, argv, "-H_f", 2);
     int W_f = find_int_arg(argc, argv, "-W_f", 2);
 
