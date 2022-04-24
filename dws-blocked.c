@@ -4,19 +4,19 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
-#define BATCH_BLOCK_PW 13
-#define FILTER_BLOCK_PW 4
-#define WIDTH_BLOCK_PW 11
-#define HEIGHT_BLOCK_PW 11
-#define CHANNEL_BLOCK_PW 13
+int BATCH_BLOCK_PW;
+int FILTER_BLOCK_PW;
+int WIDTH_BLOCK_PW;
+int HEIGHT_BLOCK_PW;
+int CHANNEL_BLOCK_PW;
 
-#define BATCH_BLOCK_DW 8
-#define CHANNEL_BLOCK_DW 2
-#define FILTER_DW 1
-#define HEIGHT_BLOCK_DW 8
-#define WIDTH_BLOCK_DW 8
-#define HEIGHT_FILTER_BLOCK_DW 3
-#define WIDTH_FILTER_BLOCK_DW 3
+int BATCH_BLOCK_DW;
+int CHANNEL_BLOCK_DW;
+int FILTER_DW;
+int HEIGHT_BLOCK_DW;
+int WIDTH_BLOCK_DW;
+int HEIGHT_FILTER_BLOCK_DW;
+int WIDTH_FILTER_BLOCK_DW;
 
 
 
@@ -174,8 +174,27 @@ void print_tensor(double *X, int size, const char *name)
     fprintf(stderr, "\n");
 }
 
+void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw) {
+    BATCH_BLOCK_PW = bbpw;
+    FILTER_BLOCK_PW = fbpw;
+    WIDTH_BLOCK_PW = wbpw;
+    HEIGHT_BLOCK_PW = hbpw;
+    CHANNEL_BLOCK_PW = cbpw;
+
+    BATCH_BLOCK_DW = bbdw;
+    CHANNEL_BLOCK_DW = cbdw;
+    FILTER_DW = fdw;
+    HEIGHT_BLOCK_DW = hbdw;
+    WIDTH_BLOCK_DW = wbdw;
+    HEIGHT_FILTER_BLOCK_DW = hfdw;
+    WIDTH_FILTER_BLOCK_DW = wfbdw;
+}
+
 void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double* depthwise_output)
 {
+
+    
+
     dw_conv(X, F_DW, depthwise_output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
     pw_conv(depthwise_output, F_1D, O, B, H_out, W_out, C_in * N_dw, C_out);
 }
