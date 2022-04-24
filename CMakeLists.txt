@@ -17,7 +17,7 @@ endif ()
 add_library(benchmark OBJECT benchmark-direct.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
 
-foreach (BENCHMARK IN ITEMS direct single)
+foreach (BENCHMARK IN ITEMS direct single blocked)
     # Create benchmarking executable
     add_executable(benchmark-${BENCHMARK} dws-${BENCHMARK}.c)
     target_link_libraries(benchmark-${BENCHMARK} PRIVATE benchmark ${BLAS_LIBRARIES})
