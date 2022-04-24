@@ -14,6 +14,7 @@
 
 extern "C" {
     extern void dws_conv(double*, double*, double*, double*, int, int, int, int, int, int, int, int, int, int, int, int, double*);
+    extern void init_conv(int, int, int, int, int, int, int, int, int, int, int, int);
 }
 
 // =================
@@ -274,6 +275,7 @@ void run(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
+    init_conv(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
     int bench = find_int_arg(argc, argv, "-benchmark", 0);
     if (bench == 1) {
         bool all_sizes = find_int_arg(argc, argv, "-all", 0) == 1;

@@ -3,6 +3,7 @@
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
+#define AVX_BITS 512
 
 int BATCH_BLOCK_PW;
 int FILTER_BLOCK_PW;
@@ -18,10 +19,9 @@ int WIDTH_BLOCK_DW;
 int HEIGHT_FILTER_BLOCK_DW;
 int WIDTH_FILTER_BLOCK_DW;
 
+int VEC_SIZE;
 
-
-static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, 
-    int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w, int b_, int c_, int f_, int w_, int h_, int w_f_, int h_f_)
+static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w, int b_, int c_, int f_, int w_, int h_, int w_f_, int h_f_)
 {
     int mat_size = W_in * H_in;
     int f_size = W_f * H_f;
@@ -108,6 +108,44 @@ static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_i
     }
 }
 
+void pw_microkernel_1x1x8(double *input, double *filter, double *output, int mat_size) {
+    // Declare
+    double A0, A1, A2, A3, A4, A5, A6, A7;
+    double B0, B1, B2, B3, B4, B5, B6, B7;
+    double C0, C1, C2, C3, C4, C5, C6, C7;
+
+    // Load
+    A0 = *(input + mat_size * (0));
+    A1 = *(input + mat_size * (1));
+    A2 = *(input + mat_size * (2));
+    A3 = *(input + mat_size * (3));
+    A4 = *(input + mat_size * (4));
+    A5 = *(input + mat_size * (5));
+    A6 = *(input + mat_size * (6));
+    A7 = *(input + mat_size * (7));
+
+    B0 = filter[0];
+    B1 = filter[1];
+    B2 = filter[2];
+    B3 = filter[3];
+    B4 = filter[4];
+    B5 = filter[5];
+    B6 = filter[6];
+    B7 = filter[7];
+
+    // Compute
+    C0 = A0 * B0; 
+    C1 = A1 * B1; 
+    C2 = A2 * B2; 
+    C3 = A3 * B3; 
+    C4 = A4 * B4; 
+    C5 = A5 * B5;
+    C6 = A6 * B6; 
+    C7 = A7 * B7; 
+
+    *output += C0 + C1 + C2 + C3 + C4 + C5 + C6 + C7;
+}
+
 void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b, int W_b, int H_b, int C_b, int b_, int f_, int w_, int h_, int c_, double* F_1D, double* O, double* X) {
     int mat_size = W_in * H_in;
     int img_size = mat_size * C_in;
@@ -125,7 +163,14 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
                 for (int h = 0; h < H_b; h += 1)
                 {
                     double *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
-                    for (int c = 0; c < C_b; c += 1)
+                    int c = 0;
+                    for (; c < C_b / 8 * 8; c += 8)
+                    {
+                        double *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
+                        double *f_curr = F_1D + (f + f_) * C_in + (c + c_);
+                        pw_microkernel_1x1x8(inp_curr, f_curr, o_curr, mat_size);
+                    }
+                    for (; c < C_b; c += 1)
                     {
                         double *f_curr = F_1D + (f + f_) * C_in + (c + c_);
                         double *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
@@ -162,8 +207,6 @@ static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_i
     }
 }
 
-
-
 void print_tensor(double *X, int size, const char *name)
 {
     fprintf(stderr, "%s\n", name);
@@ -188,6 +231,8 @@ void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int c
     WIDTH_BLOCK_DW = wbdw;
     HEIGHT_FILTER_BLOCK_DW = hfdw;
     WIDTH_FILTER_BLOCK_DW = wfbdw;
+
+    VEC_SIZE = AVX_BITS / sizeof(double);
 }
 
 void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double* depthwise_output)
