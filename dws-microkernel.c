@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <immintrin.h>
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
@@ -110,40 +111,22 @@ static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_i
 
 void pw_microkernel_1x1x8(double *input, double *filter, double *output, int mat_size) {
     // Declare
-    double A0, A1, A2, A3, A4, A5, A6, A7;
-    double B0, B1, B2, B3, B4, B5, B6, B7;
-    double C0, C1, C2, C3, C4, C5, C6, C7;
+    __m512d a, b, c;
 
     // Load
-    A0 = *(input + mat_size * (0));
-    A1 = *(input + mat_size * (1));
-    A2 = *(input + mat_size * (2));
-    A3 = *(input + mat_size * (3));
-    A4 = *(input + mat_size * (4));
-    A5 = *(input + mat_size * (5));
-    A6 = *(input + mat_size * (6));
-    A7 = *(input + mat_size * (7));
+    a = _mm512_set_pd(*(input + mat_size * (7)),
+                    *(input + mat_size * (6)),
+                    *(input + mat_size * (5)),
+                    *(input + mat_size * (4)),
+                    *(input + mat_size * (3)),
+                    *(input + mat_size * (2)),
+                    *(input + mat_size * (1)),
+                    *(input + mat_size * (0)));
+    b = _mm512_loadu_pd(filter);
+    c = _mm512_mul_pd(a, b);
 
-    B0 = filter[0];
-    B1 = filter[1];
-    B2 = filter[2];
-    B3 = filter[3];
-    B4 = filter[4];
-    B5 = filter[5];
-    B6 = filter[6];
-    B7 = filter[7];
-
-    // Compute
-    C0 = A0 * B0; 
-    C1 = A1 * B1; 
-    C2 = A2 * B2; 
-    C3 = A3 * B3; 
-    C4 = A4 * B4; 
-    C5 = A5 * B5;
-    C6 = A6 * B6; 
-    C7 = A7 * B7; 
-
-    *output += C0 + C1 + C2 + C3 + C4 + C5 + C6 + C7;
+    // Store
+    *output += _mm512_reduce_add_pd(c);
 }
 
 void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b, int W_b, int H_b, int C_b, int b_, int f_, int w_, int h_, int c_, double* F_1D, double* O, double* X) {
