@@ -27,11 +27,11 @@ int VEC_SIZE;
 
 
 void dws_microkernel(double* input, double* filter, double* output, int mat_size) {
-    
+    /*
     int A0, A1, A2, A3, A4, A5, A6, A7;
     int B0, B1, B2, B3, B4, B5, B6, B7;
     int C0, C1, C2, C3, C4, C5, C6, C7;
-    
+    */
 }
 
 static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w, int b_, int c_, int f_, int w_, int h_, int w_f_, int h_f_)
@@ -85,7 +85,6 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
                                 double *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
 
                                 // CONVOLVE
-                                #pragma omp critical
                                 *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
                             }
                         }
@@ -99,7 +98,7 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
 
 static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
-    #pragma omp parallel for collapse(7)
+    #pragma omp parallel for
     for (int b = 0; b < B; b += BATCH_BLOCK_DW)
     {
         for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
@@ -214,14 +213,12 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
                     {
                         double *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
                         double *f_curr = F_1D + (f + f_) * C_in + (c + c_);
-                        #pragma omp critical
                         pw_microkernel_1x1x8x8(inp_curr, f_curr, o_curr, mat_size, C_in);
                     }
                     for (; c < C_b; c += 1)
                     {
                         double *f_curr = F_1D + (f + f_) * C_in + (c + c_);
                         double *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
-                        #pragma omp critical
                         *o_curr += (*f_curr) * (*inp_curr);
                     }
                 }
@@ -233,14 +230,12 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
                     {
                         double *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
                         double *f_curr = F_1D + (f + f_) * C_in + (c + c_);
-                        #pragma omp critical
                         pw_microkernel_1x1x8x1(inp_curr, f_curr, o_curr, mat_size);
                     }
                     for (; c < C_b; c += 1)
                     {
                         double *f_curr = F_1D + (f + f_) * C_in + (c + c_);
                         double *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
-                        #pragma omp critical
                         *o_curr += (*f_curr) * (*inp_curr);
                     }
                 }
@@ -251,7 +246,7 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
 
 static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int C_out)
 {
-    #pragma omp parallel for collapse(5)
+    #pragma omp parallel for
     for (int b = 0; b < B; b += BATCH_BLOCK_PW)
     {
         
@@ -326,9 +321,7 @@ void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in,
     memcpy(O_aligned, O, out_size * sizeof(double));
 
     dw_conv(X_aligned, F_DW_aligned, depthwise_output_aligned, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
-    #pragma omp barrier
     pw_conv(depthwise_output_aligned, F_1D_aligned, O_aligned, B, H_out, W_out, C_in * N_dw, C_out);
-    #pragma omp barrier
     memcpy(O, O_aligned, out_size * sizeof(double));
 
     _mm_free(X_aligned);
