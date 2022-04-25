@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(hw1 LANGUAGES C CXX)
 
 find_package(BLAS REQUIRED)
-
+find_package(OpenMP REQUIRED)
 
 # We require the GNU compiler for this assignment.
 if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
@@ -16,6 +16,8 @@ endif ()
 # Common library target for benchmarking.
 add_library(benchmark OBJECT benchmark-direct.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
+
+target_link_libraries(openmp PRIVATE OpenMP::OpenMP_C)
 
 foreach (BENCHMARK IN ITEMS direct single blocked microkernel)
     # Create benchmarking executable
