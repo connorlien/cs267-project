@@ -17,11 +17,10 @@ endif ()
 add_library(benchmark OBJECT benchmark-direct.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
 
-target_link_libraries(openmp PRIVATE OpenMP::OpenMP_C)
-
 foreach (BENCHMARK IN ITEMS direct single blocked microkernel)
     # Create benchmarking executable
     add_executable(benchmark-${BENCHMARK} dws-${BENCHMARK}.c)
+    target_link_libraries(benchmark-${BENCHMARK} PRIVATE OpenMP::OpenMP_C)
     target_link_libraries(benchmark-${BENCHMARK} PRIVATE benchmark ${BLAS_LIBRARIES})
     target_compile_features(benchmark-${BENCHMARK} PRIVATE c_std_11 c_restrict)
     target_compile_options(benchmark-${BENCHMARK} PRIVATE -Wall -pedantic -march=knl)
