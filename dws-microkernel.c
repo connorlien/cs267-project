@@ -25,8 +25,8 @@ int WIDTH_FILTER_BLOCK_DW;
 
 int VEC_SIZE;
 
-
-void dws_microkernel(double* input, double* filter, double* output, int mat_size) {
+void dws_microkernel(double *input, double *filter, double *output, int mat_size)
+{
     /*
     int A0, A1, A2, A3, A4, A5, A6, A7;
     int B0, B1, B2, B3, B4, B5, B6, B7;
@@ -68,7 +68,7 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
                     for (int h = 0; h < H_b; h += 1)
                     {
                         // MICROKERNEL - tile if needed.
-                        
+
                         // PTR TO OUTPUT POSITION
                         double *curr_out_xy = curr_out + temp_out_img_size * ((c + c_) * N_dw + (f_ + f)) + row_major((h + h_), (w + w_), W_out);
 
@@ -85,7 +85,11 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
                                 double *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
 
                                 // CONVOLVE
-                                *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
+                                double result = *f_curr * *curr_inp;
+
+#pragma omp reduction(+ \
+                      : sum)
+                                *curr_out_xy += result;
                             }
                         }
                     }
@@ -95,23 +99,23 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
     }
 }
 
-
 static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
-    #pragma omp parallel for
+#pragma omp parallel for collapse(7)
     for (int b = 0; b < B; b += BATCH_BLOCK_DW)
     {
-        for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
+        for (int f = 0; f < N_dw; f += FILTER_DW)
         {
-            for (int f = 0; f < N_dw; f += FILTER_DW)
+            for (int w = 0; w < W_out; w += WIDTH_BLOCK_DW)
             {
-                for (int w = 0; w < W_out; w += WIDTH_BLOCK_DW)
+                for (int h = 0; h < H_out; h += HEIGHT_BLOCK_DW)
                 {
-                    for (int h = 0; h < H_out; h += HEIGHT_BLOCK_DW)
+                    for (int w_f = 0; w_f < W_f; w_f += WIDTH_FILTER_BLOCK_DW)
                     {
-                        for (int w_f = 0; w_f < W_f; w_f += WIDTH_FILTER_BLOCK_DW)
+                        for (int h_f = 0; h_f < H_f; h_f += HEIGHT_FILTER_BLOCK_DW)
                         {
-                            for (int h_f = 0; h_f < H_f; h_f += HEIGHT_FILTER_BLOCK_DW)
+
+                            for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
                             {
                                 dw_conv_blocked(X, F_DW, O, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w, b, c, f, w, h, w_f, h_f);
                             }
@@ -123,53 +127,53 @@ static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_i
     }
 }
 
-void pw_microkernel_1x1x8x1(double *input, double *filter, double *output, int mat_size) {
+void pw_microkernel_1x1x8x1(double *input, double *filter, double *output, int mat_size)
+{
     // Declare
     __m512d a, b, c;
 
     // Load
     a = _mm512_set_pd(*(input + mat_size * (7)),
-                    *(input + mat_size * (6)),
-                    *(input + mat_size * (5)),
-                    *(input + mat_size * (4)),
-                    *(input + mat_size * (3)),
-                    *(input + mat_size * (2)),
-                    *(input + mat_size * (1)),
-                    *(input + mat_size * (0)));
-    b = _mm512_load_pd(filter);
+                      *(input + mat_size * (6)),
+                      *(input + mat_size * (5)),
+                      *(input + mat_size * (4)),
+                      *(input + mat_size * (3)),
+                      *(input + mat_size * (2)),
+                      *(input + mat_size * (1)),
+                      *(input + mat_size * (0)));
+    b = _mm512_loadu_pd(filter);
     c = _mm512_mul_pd(a, b);
 
     // Store
     *output += _mm512_reduce_add_pd(c);
 }
 
-void pw_microkernel_1x1x8x8(double *input, double *filter, double *output, int mat_size, int C_in) {
+void pw_microkernel_1x1x8x8(double *input, double *filter, double *output, int mat_size, int C_in)
+{
     // Declare
     __m512d a;
     __m512d b0, b1, b2, b3, b4, b5, b6, b7;
     __m512d c0, c1, c2, c3, c4, c5, c6, c7;
 
-
     // Load
     a = _mm512_set_pd(*(input + mat_size * (7)),
-                    *(input + mat_size * (6)),
-                    *(input + mat_size * (5)),
-                    *(input + mat_size * (4)),
-                    *(input + mat_size * (3)),
-                    *(input + mat_size * (2)),
-                    *(input + mat_size * (1)),
-                    *(input + mat_size * (0)));
+                      *(input + mat_size * (6)),
+                      *(input + mat_size * (5)),
+                      *(input + mat_size * (4)),
+                      *(input + mat_size * (3)),
+                      *(input + mat_size * (2)),
+                      *(input + mat_size * (1)),
+                      *(input + mat_size * (0)));
 
+    b0 = _mm512_loadu_pd(filter);
+    b1 = _mm512_loadu_pd(filter + C_in * 1);
+    b2 = _mm512_loadu_pd(filter + C_in * 2);
+    b3 = _mm512_loadu_pd(filter + C_in * 3);
+    b4 = _mm512_loadu_pd(filter + C_in * 4);
+    b5 = _mm512_loadu_pd(filter + C_in * 5);
+    b6 = _mm512_loadu_pd(filter + C_in * 6);
+    b7 = _mm512_loadu_pd(filter + C_in * 7);
 
-    b0 = _mm512_load_pd(filter);
-    b1 = _mm512_load_pd(filter + C_in * 1);
-    b2 = _mm512_load_pd(filter + C_in * 2);
-    b3 = _mm512_load_pd(filter + C_in * 3);
-    b4 = _mm512_load_pd(filter + C_in * 4);
-    b5 = _mm512_load_pd(filter + C_in * 5);
-    b6 = _mm512_load_pd(filter + C_in * 6);
-    b7 = _mm512_load_pd(filter + C_in * 7);
-    
     c0 = _mm512_mul_pd(a, b0);
     c1 = _mm512_mul_pd(a, b1);
     c2 = _mm512_mul_pd(a, b2);
@@ -190,7 +194,8 @@ void pw_microkernel_1x1x8x8(double *input, double *filter, double *output, int m
     *(output + C_in * 7) += _mm512_reduce_add_pd(c7);
 }
 
-void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b, int W_b, int H_b, int C_b, int b_, int f_, int w_, int h_, int c_, double* F_1D, double* O, double* X) {
+void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b, int W_b, int H_b, int C_b, int b_, int f_, int w_, int h_, int c_, double *F_1D, double *O, double *X)
+{
     int mat_size = W_in * H_in;
     int img_size = mat_size * C_in;
     int out_size = mat_size * C_out;
@@ -199,13 +204,12 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
     {
         double *curr_img = X + (b_ + b) * img_size;
         double *curr_out = O + (b_ + b) * out_size;
-
-        for (int w = 0; w < W_b; w += 1)
+        int f = 0;
+        for (; f < F_b / 8 * 8; f += 8)
         {
-            for (int h = 0; h < H_b; h += 1)
+            for (int w = 0; w < W_b; w += 1)
             {
-                int f;
-                for (f = 0; f < F_b / 8 * 8; f += 8)
+                for (int h = 0; h < H_b; h += 1)
                 {
                     double *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
                     int c = 0;
@@ -222,7 +226,13 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
                         *o_curr += (*f_curr) * (*inp_curr);
                     }
                 }
-                for (; f < F_b; f += 1)
+            }
+        }
+        for (; f < F_b; f += 1)
+        {
+            for (int w = 0; w < W_b; w += 1)
+            {
+                for (int h = 0; h < H_b; h += 1)
                 {
                     double *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
                     int c = 0;
@@ -246,19 +256,19 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
 
 static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int C_out)
 {
-    #pragma omp parallel for
+#pragma omp parallel for collapse(4)
     for (int b = 0; b < B; b += BATCH_BLOCK_PW)
     {
-        
+
         for (int f = 0; f < C_out; f += FILTER_BLOCK_PW)
         {
-            
+
             for (int w = 0; w < W_in; w += WIDTH_BLOCK_PW)
             {
-                
+
                 for (int h = 0; h < H_in; h += HEIGHT_BLOCK_PW)
                 {
-                    
+
                     for (int c = 0; c < C_in; c += CHANNEL_BLOCK_PW)
                     {
                         int H_b = min(HEIGHT_BLOCK_PW, H_in - h);
@@ -284,7 +294,8 @@ void print_tensor(double *X, int size, const char *name)
     fprintf(stderr, "\n");
 }
 
-void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw) {
+void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw)
+{
     BATCH_BLOCK_PW = bbpw;
     FILTER_BLOCK_PW = fbpw;
     WIDTH_BLOCK_PW = wbpw;
@@ -302,30 +313,30 @@ void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int c
     VEC_SIZE = AVX_BITS / sizeof(double);
 }
 
-void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double* depthwise_output)
+void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double *depthwise_output)
 {
     int inp_size = B * C_in * W_in * H_in;
     int f_dw_size = N_dw * C_in * H_f * W_f;
     int f_1d_size = C_out * C_in * N_dw;
     int out_size = B * C_out * W_out * H_out;
 
-    double* X_aligned = (double *) _mm_malloc(inp_size * sizeof(double), 64);
-    double* F_DW_aligned = (double *) _mm_malloc(f_dw_size * sizeof(double), 64);
-    double* F_1D_aligned = (double *) _mm_malloc(f_1d_size * sizeof(double), 64);
-    double* O_aligned = (double *) _mm_malloc(out_size * sizeof(double), 64);
-    double* depthwise_output_aligned = (double *) _mm_malloc(B * W_out * H_out * C_in * N_dw * sizeof(double), 64);
+    double *X_aligned = X;                               //(double *)_mm_malloc(inp_size * sizeof(double), 64);
+    double *F_DW_aligned = F_DW;                         // (double *)_mm_malloc(f_dw_size * sizeof(double), 64);
+    double *F_1D_aligned = F_1D;                         // (double *) _mm_malloc(f_1d_size * sizeof(double), 64);
+    double *O_aligned = O;                               // (double *)_mm_malloc(out_size * sizeof(double), 64);
+    double *depthwise_output_aligned = depthwise_output; //(double *)_mm_malloc(B * W_out * H_out * C_in * N_dw * sizeof(double), 64);
 
-    memcpy(X_aligned, X, inp_size * sizeof(double));
-    memcpy(F_DW_aligned, F_DW, f_dw_size * sizeof(double));
-    memcpy(F_1D_aligned, F_1D, f_1d_size * sizeof(double));
-    memcpy(O_aligned, O, out_size * sizeof(double));
+    // memcpy(X_aligned, X, inp_size * sizeof(double));
+    // memcpy(F_DW_aligned, F_DW, f_dw_size * sizeof(double));
+    // memcpy(F_1D_aligned, F_1D, f_1d_size * sizeof(double));
+    // memcpy(O_aligned, O, out_size * sizeof(double));
 
     dw_conv(X_aligned, F_DW_aligned, depthwise_output_aligned, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
     pw_conv(depthwise_output_aligned, F_1D_aligned, O_aligned, B, H_out, W_out, C_in * N_dw, C_out);
-    memcpy(O, O_aligned, out_size * sizeof(double));
+    // memcpy(O, O_aligned, out_size * sizeof(double));
 
-    _mm_free(X_aligned);
-    _mm_free(F_DW_aligned);
-    _mm_free(F_1D_aligned);
-    _mm_free(O_aligned);
+    // _mm_free(X_aligned);
+    // _mm_free(F_DW_aligned);
+    // _mm_free(F_1D_aligned);
+    // _mm_free(O_aligned);
 }
