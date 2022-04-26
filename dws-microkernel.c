@@ -87,9 +87,10 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
                                 // CONVOLVE
                                 double result = *f_curr * *curr_inp;
 
-#pragma omp reduction(+ \
-                      : sum)
+                                // #pragma omp reduction(+ : sum)
                                 *curr_out_xy += result;
+
+                                // __atomic_fetch_add(curr_out_xy, result, __ATOMIC_SEQ_CST);
                             }
                         }
                     }
@@ -101,7 +102,7 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
 
 static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
-#pragma omp parallel for collapse(7)
+#pragma omp parallel for collapse(2)
     for (int b = 0; b < B; b += BATCH_BLOCK_DW)
     {
         for (int f = 0; f < N_dw; f += FILTER_DW)
@@ -114,7 +115,6 @@ static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_i
                     {
                         for (int h_f = 0; h_f < H_f; h_f += HEIGHT_FILTER_BLOCK_DW)
                         {
-
                             for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
                             {
                                 dw_conv_blocked(X, F_DW, O, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w, b, c, f, w, h, w_f, h_f);
@@ -315,10 +315,6 @@ void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int c
 
 void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double *depthwise_output)
 {
-    int inp_size = B * C_in * W_in * H_in;
-    int f_dw_size = N_dw * C_in * H_f * W_f;
-    int f_1d_size = C_out * C_in * N_dw;
-    int out_size = B * C_out * W_out * H_out;
 
     double *X_aligned = X;                               //(double *)_mm_malloc(inp_size * sizeof(double), 64);
     double *F_DW_aligned = F_DW;                         // (double *)_mm_malloc(f_dw_size * sizeof(double), 64);
