@@ -18,8 +18,6 @@ int WIDTH_BLOCK_DW;
 int HEIGHT_FILTER_BLOCK_DW;
 int WIDTH_FILTER_BLOCK_DW;
 
-
-
 static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, 
     int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w, int b_, int c_, int f_, int w_, int h_, int w_f_, int h_f_)
 {

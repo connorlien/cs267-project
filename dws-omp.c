@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <immintrin.h>
 #include <string.h>
+#include <omp.h>
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
@@ -62,18 +63,18 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
             // Filters are 2D
             for (int f = 0; f < F_b; f += 1)
             {
-                for (int h = 0; h < H_b; h += 1)
+                for (int w = 0; w < W_b; w += 1)
                 {
-                    for (int w = 0; w < W_b; w += 1)
+                    for (int h = 0; h < H_b; h += 1)
                     {
                         // MICROKERNEL - tile if needed.
 
                         // PTR TO OUTPUT POSITION
                         double *curr_out_xy = curr_out + temp_out_img_size * ((c + c_) * N_dw + (f_ + f)) + row_major((h + h_), (w + w_), W_out);
 
-                        for (int h_f = 0; h_f < H_f_b; h_f += 1)
+                        for (int w_f = 0; w_f < W_f_b; w_f += 1)
                         {
-                            for (int w_f = 0; w_f < W_f_b; w_f += 1)
+                            for (int h_f = 0; h_f < H_f_b; h_f += 1)
                             {
                                 // PTR TO CURRENT POSITION IN FILTER
                                 double *f_curr = F_DW + f_size * ((c + c_) * N_dw + (f + f_)) + row_major((h_f + h_f_), (w_f + w_f_), W_f);
@@ -86,7 +87,10 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
                                 // CONVOLVE
                                 double result = *f_curr * *curr_inp;
 
+                                // #pragma omp reduction(+ : sum)
                                 *curr_out_xy += result;
+
+                                // __atomic_fetch_add(curr_out_xy, result, __ATOMIC_SEQ_CST);
                             }
                         }
                     }
@@ -98,19 +102,20 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
 
 static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
+#pragma omp parallel for collapse(2)
     for (int b = 0; b < B; b += BATCH_BLOCK_DW)
     {
-        for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
+        for (int f = 0; f < N_dw; f += FILTER_DW)
         {
-            for (int f = 0; f < N_dw; f += FILTER_DW)
+            for (int w = 0; w < W_out; w += WIDTH_BLOCK_DW)
             {
                 for (int h = 0; h < H_out; h += HEIGHT_BLOCK_DW)
                 {
-                    for (int w = 0; w < W_out; w += WIDTH_BLOCK_DW)
+                    for (int w_f = 0; w_f < W_f; w_f += WIDTH_FILTER_BLOCK_DW)
                     {
                         for (int h_f = 0; h_f < H_f; h_f += HEIGHT_FILTER_BLOCK_DW)
                         {
-                            for (int w_f = 0; w_f < W_f; w_f += WIDTH_FILTER_BLOCK_DW)
+                            for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
                             {
                                 dw_conv_blocked(X, F_DW, O, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w, b, c, f, w, h, w_f, h_f);
                             }
@@ -202,9 +207,9 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
         int f = 0;
         for (; f < F_b / 8 * 8; f += 8)
         {
-            for (int h = 0; h < H_b; h += 1)
+            for (int w = 0; w < W_b; w += 1)
             {
-                for (int w = 0; w < W_b; w += 1)
+                for (int h = 0; h < H_b; h += 1)
                 {
                     double *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
                     int c = 0;
@@ -225,9 +230,9 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
         }
         for (; f < F_b; f += 1)
         {
-            for (int h = 0; h < H_b; h += 1)
+            for (int w = 0; w < W_b; w += 1)
             {
-                for (int w = 0; w < W_b; w += 1)
+                for (int h = 0; h < H_b; h += 1)
                 {
                     double *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
                     int c = 0;
@@ -251,15 +256,20 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
 
 static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int C_out)
 {
+#pragma omp parallel for collapse(4)
     for (int b = 0; b < B; b += BATCH_BLOCK_PW)
     {
-        for (int c = 0; c < C_in; c += CHANNEL_BLOCK_PW)
+
+        for (int f = 0; f < C_out; f += FILTER_BLOCK_PW)
         {
-            for (int f = 0; f < C_out; f += FILTER_BLOCK_PW)
+
+            for (int w = 0; w < W_in; w += WIDTH_BLOCK_PW)
             {
+
                 for (int h = 0; h < H_in; h += HEIGHT_BLOCK_PW)
                 {
-                    for (int w = 0; w < W_in; w += WIDTH_BLOCK_PW)                
+
+                    for (int c = 0; c < C_in; c += CHANNEL_BLOCK_PW)
                     {
                         int H_b = min(HEIGHT_BLOCK_PW, H_in - h);
                         int F_b = min(FILTER_BLOCK_PW, C_out - f);
