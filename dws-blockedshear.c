@@ -17,9 +17,11 @@ int HEIGHT_BLOCK_DW;
 int WIDTH_BLOCK_DW;
 int HEIGHT_FILTER_BLOCK_DW;
 int WIDTH_FILTER_BLOCK_DW;
+int HEIGHT_FILTER_BLOCK_DW_P;
+int WIDTH_FILTER_BLOCK_DW_P;
 
 static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f,
-                            int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w, int b_, int c_, int f_, int w_, int h_, int w_f_, int h_f_)
+                            int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w, int b_, int c_, int f_, int w_, int h_, int q6_, int q7_, int r6_, int r7_)
 {
     int mat_size = W_in * H_in;
     int f_size = W_f * H_f;
@@ -33,8 +35,21 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
     int F_b = min(FILTER_DW, N_dw - f_);
     int W_b = min(WIDTH_BLOCK_DW, W_out - w_);
     int H_b = min(HEIGHT_BLOCK_DW, H_out - h_);
-    int W_f_b = min(WIDTH_FILTER_BLOCK_DW, W_f - w_f_);
-    int H_f_b = min(HEIGHT_FILTER_BLOCK_DW, H_f - h_f_);
+
+    int W_f_b = min(WIDTH_FILTER_BLOCK_DW, stride_w - r7_);
+    int W_f_b_p = min(WIDTH_FILTER_BLOCK_DW_P,  W_f / stride_w - q7_);
+
+    int H_f_b = min(HEIGHT_FILTER_BLOCK_DW, stride_h - r6_);
+    int H_f_b_p = min(HEIGHT_FILTER_BLOCK_DW_P,  H_f / stride_h - q6_);
+
+    // for (int r6 = 0; r6 < stride_h; r6 += 1)
+    //                     {
+    //                         for (int q6 = 0; q6 < H_f / stride_h; q6 += 1)
+    //                         {
+    //                             for (int r7 = 0; r7 < stride_w; r7 += 1)
+    //                             {
+    //                                 for (int q7 = 0; q7 < W_f / stride_w; q7 += 1)
+    //                                 {
 
     for (int f = 0; f < F_b; f += 1)
     {
@@ -53,25 +68,32 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
                 {
                     for (int w = 0; w < W_b; w += 1)
                     {
-                        for (int h_f = 0; h_f < H_f_b; h_f += 1)
+                        for (int r6 = 0; r6 < H_f_b; r6 += 1)
                         {
-                            // MICROKERNEL - tile if needed.
-                            for (int w_f = 0; w_f < W_f_b; w_f += 1)
+                            for (int q6 = 0; q6 < H_f_b_p; q6 += 1)
                             {
+                                for (int r7 = 0; r7 < W_f_b; r7 += 1)
+                                {
+                                    for (int q7 = 0; q7 < W_f_b_p; q7 += 1)
+                                    {
+                                        int h_f = stride_h * (q6 + q6_) + (r6 + r6_);
+                                        int w_f = stride_w * (q7 + q7_) + (r7 + r7_);
 
-                                // PTR TO CURRENT POSITION IN FILTER
-                                double *f_curr = F_DW + f_size * ((c + c_) * N_dw + (f + f_)) + row_major((h_f + h_f_), (w_f + w_f_), W_f);
+                                        // PTR TO CURRENT POSITION IN FILTER
+                                        double *f_curr = F_DW + f_size * ((c + c_) * N_dw + (f + f_)) + row_major(h_f, w_f, W_f);
 
-                                // PTR TO INPUT POSITION
-                                int h_curr = (h_f + h_f_) + stride_h * (h + h_);
-                                int w_curr = (w_f + w_f_) + stride_w * (w + w_);
-                                double *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
+                                        // PTR TO INPUT POSITION
+                                        int h_curr = h_f + stride_h * (h + h_);
+                                        int w_curr = w_f  + stride_w * (w + w_);
+                                        double *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
 
-                                // PTR TO INPUT POSITION
-                                double *curr_out_xy = curr_out + temp_out_img_size * ((c + c_) * N_dw + (f_ + f)) + row_major((h + h_), (w + w_), W_out);
+                                        // PTR TO INPUT POSITION
+                                        double *curr_out_xy = curr_out + temp_out_img_size * ((c + c_) * N_dw + (f_ + f)) + row_major((h + h_), (w + w_), W_out);
 
-                                // CONVOLVE
-                                *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
+                                        // CONVOLVE
+                                        *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
+                                    }
+                                }
                             }
                         }
                     }
@@ -93,11 +115,17 @@ static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_i
                 {
                     for (int w = 0; w < W_out; w += WIDTH_BLOCK_DW)
                     {
-                        for (int h_f = 0; h_f < H_f; h_f += HEIGHT_FILTER_BLOCK_DW)
+                        for (int r6 = 0; r6 < stride_h; r6 += HEIGHT_FILTER_BLOCK_DW)
                         {
-                            for (int w_f = 0; w_f < W_f; w_f += WIDTH_FILTER_BLOCK_DW)
+                            for (int q6 = 0; q6 < H_f / stride_h; q6 += HEIGHT_FILTER_BLOCK_DW_P)
                             {
-                                dw_conv_blocked(X, F_DW, O, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w, b, c, f, w, h, w_f, h_f);
+                                for (int r7 = 0; r7 < stride_w; r7 += WIDTH_FILTER_BLOCK_DW)
+                                {
+                                    for (int q7 = 0; q7 < W_f / stride_w; q7 += WIDTH_FILTER_BLOCK_DW_P)
+                                    {
+                                        dw_conv_blocked(X, F_DW, O, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w, b, c, f, w, h, q6, q7, r6, r7);
+                                    }
+                                }
                             }
                         }
                     }
@@ -187,6 +215,8 @@ void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int c
     WIDTH_BLOCK_DW = wbdw;
     HEIGHT_FILTER_BLOCK_DW = hfdw;
     WIDTH_FILTER_BLOCK_DW = wfbdw;
+    HEIGHT_FILTER_BLOCK_DW_P = hfdwp;
+    WIDTH_FILTER_BLOCK_DW_P = wfdwp;
 }
 
 void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double *depthwise_output)

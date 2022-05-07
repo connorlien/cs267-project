@@ -13,27 +13,28 @@ static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_i
     int temp_out_img_size = W_out * H_out;
     int temp_out_size = temp_out_img_size * N_dw * C_in;
 
-    for (int b = 0; b < B; b += 1)
+    for (int f = 0; f < N_dw; f += 1)
     {
-        // PTRS TO IMG IN BATCH
-        double *curr_img = X + b * img_size;
-        double *curr_out = O + b * temp_out_size;
-        for (int c = 0; c < C_in; c += 1)
+        for (int b = 0; b < B; b += 1)
         {
+            // PTRS TO IMG IN BATCH
+            double *curr_img = X + b * img_size;
+            double *curr_out = O + b * temp_out_size;
             // Do 2D Convolution channelwise
-            double *curr_channel = curr_img + mat_size * c;
             // Filters are 2D
-            for (int f = 0; f < N_dw; f += 1)
+            for (int c = 0; c < C_in; c += 1)
             {
-                for (int w = 0; w < W_out; w += 1)
+                for (int h = 0; h < H_out; h += 1)
                 {
-                    for (int h = 0; h < H_out; h += 1)
+                    for (int w = 0; w < W_out; w += 1)
                     {
                         // MICROKERNEL - tile if needed.
-                        for (int w_f = 0; w_f < W_f; w_f += 1)
+                        for (int h_f = 0; h_f < H_f; h_f += 1)
                         {
-                            for (int h_f = 0; h_f < H_f; h_f += 1)
+                            for (int w_f = 0; w_f < W_f; w_f += 1)
                             {
+                                double *curr_channel = curr_img + mat_size * c;
+
                                 // PTR TO CURRENT POSITION IN FILTER
                                 double *f_curr = F_DW + f_size * (c * N_dw + f) + row_major(h_f, w_f, W_f);
 
@@ -66,17 +67,16 @@ static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_i
     {
         double *curr_img = X + b * img_size;
         double *curr_out = O + b * out_size;
-
-        for (int f = 0; f < C_out; f += 1)
+        for (int c = 0; c < C_in; c += 1)
         {
-            for (int w = 0; w < W_in; w += 1)
+            for (int f = 0; f < C_out; f += 1)
             {
+                double *f_curr = F_1D + f * C_in + c;
                 for (int h = 0; h < H_in; h += 1)
                 {
-                    double *o_curr = curr_out + mat_size * f + row_major(h, w, W_in);
-                    for (int c = 0; c < C_in; c += 1)
+                    for (int w = 0; w < W_in; w += 1)
                     {
-                        double *f_curr = F_1D + f * C_in + c;
+                        double *o_curr = curr_out + mat_size * f + row_major(h, w, W_in);
                         double *inp_curr = curr_img + mat_size * c + row_major(h, w, W_in);
                         *o_curr += (*f_curr) * (*inp_curr);
                     }
@@ -86,20 +86,11 @@ static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_i
     }
 }
 
-void print_tensor(double *X, int size, const char *name)
+void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw, int hfdwp, int wfdwp)
 {
-    fprintf(stderr, "%s\n", name);
-    for (int i = 0; i < size; i += 1)
-    {
-        fprintf(stderr, "%f ", X[i]);
-    }
-    fprintf(stderr, "\n");
 }
 
-void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw) {
-}
-
-void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double* depthwise_output)
+void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double *depthwise_output)
 {
     dw_conv(X, F_DW, depthwise_output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
     pw_conv(depthwise_output, F_1D, O, B, H_out, W_out, C_in * N_dw, C_out);
