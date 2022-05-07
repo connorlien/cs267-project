@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "dws-gpu.cu"
 
 void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw)
 {
