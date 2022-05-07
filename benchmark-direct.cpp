@@ -288,7 +288,7 @@ void run(int argc, char** argv) {
     double* F_DW = (double *) calloc(N_dw * C_in * H_f * W_f, sizeof(double));
     double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
     double* output = (double *) calloc(B * C_out * W_out * H_out, sizeof(double));
-    double *depthwise_output = (double *)calloc(B * W_out * H_out * C_in * N_dw, sizeof(double));
+    double *depthwise_output = (double *) calloc(B * W_out * H_out * C_in * N_dw, sizeof(double));
 
     fill(input, B * C_in * W_in * H_in, seed);
     fill(F_DW, N_dw * C_in * H_f * W_f, seed);
