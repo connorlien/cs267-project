@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda.h>
+#include "dws-gpu.h"
 
 #define NUM_THREADS 16
 #define min(a, b) (((a) < (b)) ? (a) : (b))
