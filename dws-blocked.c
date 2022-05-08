@@ -18,7 +18,7 @@ int WIDTH_BLOCK_DW;
 int HEIGHT_FILTER_BLOCK_DW;
 int WIDTH_FILTER_BLOCK_DW;
 
-static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f,
+static void dw_conv_blocked(float *X, float *F_DW, float *O, int B, int H_in, int W_in, int C_in, int H_f,
                             int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w, int b_, int c_, int f_, int w_, int h_, int w_f_, int h_f_)
 {
     int mat_size = W_in * H_in;
@@ -41,12 +41,12 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
         for (int b = 0; b < B_b; b += 1)
         {
             // PTRS TO IMG IN BATCH
-            double *curr_img = X + (b + b_) * img_size;
-            double *curr_out = O + (b + b_) * temp_out_size;
+            float *curr_img = X + (b + b_) * img_size;
+            float *curr_out = O + (b + b_) * temp_out_size;
             for (int c = 0; c < C_b; c += 1)
             {
                 // Do 2D Convolution channelwise
-                double *curr_channel = curr_img + mat_size * (c + c_);
+                float *curr_channel = curr_img + mat_size * (c + c_);
                 // Filters are 2D
 
                 for (int h = 0; h < H_b; h += 1)
@@ -60,15 +60,15 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
                             {
 
                                 // PTR TO CURRENT POSITION IN FILTER
-                                double *f_curr = F_DW + f_size * ((c + c_) * N_dw + (f + f_)) + row_major((h_f + h_f_), (w_f + w_f_), W_f);
+                                float *f_curr = F_DW + f_size * ((c + c_) * N_dw + (f + f_)) + row_major((h_f + h_f_), (w_f + w_f_), W_f);
 
                                 // PTR TO INPUT POSITION
                                 int h_curr = (h_f + h_f_) + stride_h * (h + h_);
                                 int w_curr = (w_f + w_f_) + stride_w * (w + w_);
-                                double *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
+                                float *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
 
                                 // PTR TO INPUT POSITION
-                                double *curr_out_xy = curr_out + temp_out_img_size * ((c + c_) * N_dw + (f_ + f)) + row_major((h + h_), (w + w_), W_out);
+                                float *curr_out_xy = curr_out + temp_out_img_size * ((c + c_) * N_dw + (f_ + f)) + row_major((h + h_), (w + w_), W_out);
 
                                 // CONVOLVE
                                 *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
@@ -81,7 +81,7 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
     }
 }
 
-static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
+static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
     for (int f = 0; f < N_dw; f += FILTER_DW)
     {
@@ -107,7 +107,7 @@ static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_i
     }
 }
 
-void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b, int W_b, int H_b, int C_b, int b_, int f_, int w_, int h_, int c_, double *F_1D, double *O, double *X)
+void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b, int W_b, int H_b, int C_b, int b_, int f_, int w_, int h_, int c_, float *F_1D, float *O, float *X)
 {
     int mat_size = W_in * H_in;
     int img_size = mat_size * C_in;
@@ -115,20 +115,20 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
 
     for (int b = 0; b < B_b; b += 1)
     {
-        double *curr_img = X + (b_ + b) * img_size;
-        double *curr_out = O + (b_ + b) * out_size;
+        float *curr_img = X + (b_ + b) * img_size;
+        float *curr_out = O + (b_ + b) * out_size;
 
         for (int c = 0; c < C_b; c += 1)
         {
             for (int f = 0; f < F_b; f += 1)
             {
-                double *f_curr = F_1D + (f + f_) * C_in + (c + c_);
+                float *f_curr = F_1D + (f + f_) * C_in + (c + c_);
                 for (int h = 0; h < H_b; h += 1)
                 {
                     for (int w = 0; w < W_b; w += 1)
                     {
-                        double *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
-                        double *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
+                        float *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
+                        float *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
                         *o_curr += (*f_curr) * (*inp_curr);
                     }
                 }
@@ -137,7 +137,7 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
     }
 }
 
-static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int C_out)
+static void pw_conv(float *X, float *F_1D, float *O, int B, int H_in, int W_in, int C_in, int C_out)
 {
     for (int b = 0; b < B; b += BATCH_BLOCK_PW)
     {
@@ -162,7 +162,7 @@ static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_i
     }
 }
 
-void print_tensor(double *X, int size, const char *name)
+void print_tensor(float *X, int size, const char *name)
 {
     fprintf(stderr, "%s\n", name);
     for (int i = 0; i < size; i += 1)
@@ -189,7 +189,7 @@ void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int c
     WIDTH_FILTER_BLOCK_DW = wfbdw;
 }
 
-void dws_conv(double *X, double *F_DW, double *F_1D, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, double *depthwise_output)
+void dws_conv(float *X, float *F_DW, float *F_1D, float *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, float *depthwise_output)
 {
     dw_conv(X, F_DW, depthwise_output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
     pw_conv(depthwise_output, F_1D, O, B, H_out, W_out, C_in * N_dw, C_out);
