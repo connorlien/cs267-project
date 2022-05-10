@@ -3,7 +3,7 @@
 #include <cuda.h>
 #include "dws-gpu.h"
 
-#define NUM_THREADS 16
+#define NUM_THREADS 32
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
