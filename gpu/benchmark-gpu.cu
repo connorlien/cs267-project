@@ -9,7 +9,10 @@
 #include <cstring>
 #include <cblas.h>
 #include <stdio.h>
+#include <curand.h>
+#include <curand_kernel.h>
 #include "dws-gpu.h"
+
 
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
@@ -66,6 +69,17 @@ void fill(float* p, int n, int seed) {
     }
 }
 
+__global__ void fillGpu(float* p, int n, int seed) {
+    // static std::random_device rd;
+    // static std::default_random_engine gen(seed ? seed : rd());
+    // static std::uniform_real_distribution<> dis(-1.0, 1.0);
+    curandState state;
+    curand_init(seed, 0, 0, &state);
+    for (int i = 0; i < n; ++i) {
+        p[i] = curand_uniform(&state);
+    }
+}
+
 void fillDet(float* p, int n){
     for (int i = 0; i < n; ++i){
 	    p[i] = i + 1.0;
@@ -84,6 +98,12 @@ void fillOne(float* p, int n){
 
 void fillZero(float* p, int n){
     fillConst(p, n, 0.0);
+}
+
+__global__ void fillZeroGpu(float* p, int n){
+    for (int i = 0; i < n; ++i) {
+        p[i] = 0;
+	}
 }
 
 void printTensor(float* p, int B, int W, int H, int C) {
@@ -198,11 +218,17 @@ void benchmark(bool all_sizes = false) {
     int stride_h = 2;
     int stride_w = 2;
 
-    float* input = (float *) calloc(B * C_in * nmax * nmax, sizeof(float));
-    float* F_DW = (float *) calloc(N_dw * C_in * kmax * kmax, sizeof(float));
-    float* F_1D = (float *) calloc(N_1d * C_in * N_dw, sizeof(float));
-    float* output = (float *) calloc(B * C_out * nmax * nmax, sizeof(float));
-    float *depthwise_output = (float *) calloc(B * nmax * nmax * C_in * N_dw, sizeof(float));
+    float* X_gpu;
+    float* F_DW_gpu;
+    float* F_1D_gpu;
+    float* O_gpu;
+    float* depthwise_output_gpu;
+
+    cudaMalloc((void**) &X_gpu, B * C_in * nmax * nmax * sizeof(float));
+    cudaMalloc((void**) &F_DW_gpu, N_dw * C_in * kmax * kmax * sizeof(float));
+    cudaMalloc((void**) &F_1D_gpu, N_1d * C_in * N_dw * sizeof(float));
+    cudaMalloc((void**) &O_gpu, B * C_out * nmax * nmax * sizeof(float));
+    cudaMalloc((void**) &depthwise_output_gpu, B * nmax * nmax * C_in * N_dw * sizeof(float));
 
     /* For each tensor size */
     int idx = 0;
@@ -212,32 +238,33 @@ void benchmark(bool all_sizes = false) {
             init_conv(bbpw[idx], fbpw[idx], wbpw[idx], hbpw[idx], cbpw[idx],
             bbdw[idx], cbdw[idx], fdw[idx], hbdw[idx], wbdw[idx], hfdw[idx], wfbd[idx]);
             
-            int W_in = n;
-            int H_in = n;
-            int H_f = k;
-            int W_f = k;
-            int W_out = floor((n - k) / stride_w + 1);
-            int H_out = floor((n - k) / stride_h + 1);
+            W_in = n;
+            H_in = n;
+            H_f = k;
+            W_f = k;
+            W_out = floor((n - k) / stride_w + 1);
+            H_out = floor((n - k) / stride_h + 1);
 
             if (H_out == 0 || W_out == 0) {
                 continue;
             }
-            
-            fill(input, B * C_in * W_in * H_in, seed);
-            fill(F_DW, N_dw * C_in * H_f * W_f, seed);
-            fill(F_1D, N_1d * C_in * N_dw, seed);
+
+            fillGpu<<<1, 1>>>(X_gpu, B * C_in * W_in * H_in, seed);
+            fillGpu<<<1, 1>>>(F_DW_gpu, N_dw * C_in * H_f * W_f, seed);
+            fillGpu<<<1, 1>>>(F_1D_gpu, N_1d * C_in * N_dw, seed);
+            fillZeroGpu<<<1, 1>>>(depthwise_output_gpu, B * W_out * H_out * C_in * N_dw);
 
             /* Time a "sufficiently long" sequence of calls to reduce noise */
             double avg_time = 0.0, seconds = -1.0;
             double timeout = 0.1; // "sufficiently long" := at least 1/10 second.
             for (int n_iterations = 1; seconds < timeout; n_iterations *= 2) {
                 /* Warm-up */
-                dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
+                dws_conv(X_gpu, F_DW_gpu, F_1D_gpu, O_gpu, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output_gpu);
 
                 /* Benchmark n_iterations runs of square_dgemm */
                 auto start = std::chrono::steady_clock::now();
                 for (int it = 0; it < n_iterations; ++it) {
-                    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
+                    dws_conv(X_gpu, F_DW_gpu, F_1D_gpu, O_gpu, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output_gpu);
                 }
                 auto end = std::chrono::steady_clock::now();
                 std::chrono::duration<double> diff = end - start;
@@ -249,8 +276,15 @@ void benchmark(bool all_sizes = false) {
 
             fprintf(stdout, "Tensor Size: %d  \tKernel Size: %d\tTime: %f s\n", n , k, avg_time);
             idx += 1;
+            
         }
     }
+
+    cudaFree(X_gpu);
+    cudaFree(F_DW_gpu);
+    cudaFree(F_1D_gpu);
+    cudaFree(O_gpu);
+    cudaFree(depthwise_output_gpu);
 }
 
 void run(int argc, char** argv) {
@@ -290,6 +324,22 @@ void run(int argc, char** argv) {
     fill(F_DW, N_dw * C_in * H_f * W_f, seed);
     fill(F_1D, N_1d * C_in * N_dw, seed);
 
+    float* X_gpu;
+    float* F_DW_gpu;
+    float* F_1D_gpu;
+    float* O_gpu;
+    float* depthwise_output_gpu;
+
+    cudaMalloc((void**) &X_gpu, B * C_in * W_in * H_in * sizeof(float));
+    cudaMalloc((void**) &F_DW_gpu, N_dw * C_in * H_f * W_f * sizeof(float));
+    cudaMalloc((void**) &F_1D_gpu, C_out * C_in * N_dw * sizeof(float));
+    cudaMalloc((void**) &O_gpu, B * C_out * W_out * H_out * sizeof(float));
+    cudaMalloc((void**) &depthwise_output_gpu, B * W_out * H_out * C_in * N_dw * sizeof(float));
+
+    cudaMemcpy(X_gpu, input, B * C_in * W_in * H_in * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(F_DW_gpu, F_DW, N_dw * C_in * H_f * W_f * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(F_1D_gpu, F_1D, C_out * C_in * N_dw * sizeof(float), cudaMemcpyHostToDevice);
+
     if (debug != 0) {
         fprintf(stderr, "Input \n");
         printTensor(input, B, W_in, H_in, C_in);
@@ -300,7 +350,14 @@ void run(int argc, char** argv) {
         // TODO: PRINT FILTERS
     }
 
-    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
+    dws_conv(X_gpu, F_DW_gpu, F_1D_gpu, O_gpu, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output_gpu);
+
+    cudaMemcpy(output, O_gpu, B * C_out * W_out * H_out * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaFree(X_gpu);
+    cudaFree(F_DW_gpu);
+    cudaFree(F_1D_gpu);
+    cudaFree(O_gpu);
+    cudaFree(depthwise_output_gpu);
 
     if (debug != 0) {
         fprintf(stderr, "Output after \n");
