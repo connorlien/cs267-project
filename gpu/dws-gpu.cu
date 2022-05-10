@@ -68,8 +68,9 @@ __global__ void pw_conv_gpu(float *X, float *F_1D, float *O, int B, int H_in, in
 {
     // Compute batch and channel for this thread
     int b = threadIdx.x + blockIdx.x * blockDim.x;
+    int f = threadIdx.y + blockIdx.y * blockDim.y;
 
-    if (b >= B) {
+    if (b >= B || f >= C_out) {
         return;
     }
 
@@ -80,22 +81,21 @@ __global__ void pw_conv_gpu(float *X, float *F_1D, float *O, int B, int H_in, in
     float *curr_img = X + b * img_size;
     float *curr_out = O + b * out_size;
 
-    for (int f = 0; f < C_out; f += 1)
+   
+    for (int w = 0; w < W_in; w += 1)
     {
-        for (int w = 0; w < W_in; w += 1)
+        for (int h = 0; h < H_in; h += 1)
         {
-            for (int h = 0; h < H_in; h += 1)
+            float *o_curr = curr_out + mat_size * f + row_major(h, w, W_in);
+            for (int c = 0; c < C_in; c += 1)
             {
-                float *o_curr = curr_out + mat_size * f + row_major(h, w, W_in);
-                for (int c = 0; c < C_in; c += 1)
-                {
-                    float *f_curr = F_1D + f * C_in + c;
-                    float *inp_curr = curr_img + mat_size * c + row_major(h, w, W_in);
-                    *o_curr += (*f_curr) * (*inp_curr);
-                }
+                float *f_curr = F_1D + f * C_in + c;
+                float *inp_curr = curr_img + mat_size * c + row_major(h, w, W_in);
+                *o_curr += (*f_curr) * (*inp_curr);
             }
         }
     }
+
 }
 
 void print_tensor(float *X, int size, const char *name)
@@ -129,10 +129,13 @@ void dws_conv(float *X, float *F_DW, float *F_1D, float *O, int B, int H_in, int
     cudaMemcpy(F_DW_gpu, F_DW, N_dw * C_in * H_f * W_f * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(F_1D_gpu, F_1D, C_out * C_in * N_dw * sizeof(float), cudaMemcpyHostToDevice);
 
-    dim3 dimGrid(B, C_in);
-    dim3 dimBlock(NUM_THREADS, NUM_THREADS);
-    dw_conv_gpu<<<dimGrid, dimBlock>>>(X_gpu, F_DW_gpu, depthwise_output_gpu, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
-    pw_conv_gpu<<<B, NUM_THREADS>>>(depthwise_output_gpu, F_1D_gpu, O_gpu, B, H_out, W_out, C_in * N_dw, C_out);
+    dim3 dw_gridDim(B, C_in);
+    dim3 dw_blockDim(NUM_THREADS, NUM_THREADS);
+    dw_conv_gpu<<<dw_gridDim, dw_blockDim>>>(X_gpu, F_DW_gpu, depthwise_output_gpu, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h, stride_w);
+    
+    dim3 pw_gridDim(B, C_out);
+    dim3 pw_blockDim(NUM_THREADS, NUM_THREADS);
+    pw_conv_gpu<<<pw_gridDim, pw_blockDim>>>(depthwise_output_gpu, F_1D_gpu, O_gpu, B, H_out, W_out, C_in * N_dw, C_out);
 
     cudaMemcpy(O, O_gpu, B * C_out * W_out * H_out * sizeof(float), cudaMemcpyDeviceToHost);
 }
