@@ -13,9 +13,12 @@ if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
             "module swap ${Prg-${CMAKE_C_COMPILER_ID}} PrgEnv-gnu")
 endif ()
 
-add_executable(benchmark-gpu benchmark-gpu.cu dws-gpu.h dws-gpu.cu)
-target_compile_features(benchmark-gpu PRIVATE cxx_std_11 c_restrict)
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_60")
+foreach (BENCHMARK IN ITEMS gpu gpu-blocked)
+    # Create benchmarking executable
+    add_executable(benchmark-${BENCHMARK} benchmark-gpu.cu dws-gpu.h dws-${BENCHMARK}.cu)
+    target_compile_features(benchmark-gpu PRIVATE cxx_std_11 c_restrict)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_60")
 
-# Copy the job scripts
-configure_file(job.in job-gpu)
+    # Generate job script
+    configure_file(job.in job-gpu)
+endforeach ()

@@ -34,7 +34,6 @@ __global__ void dw_conv_gpu(float *X, float *F_DW, float *O, int B, int H_in, in
     for (int c = 0; c < C_in; c += 1)
     {
         float *curr_channel = curr_img + mat_size * c;
-        // MICROKERNEL - tile if needed.
         for (int w_f = 0; w_f < W_f; w_f += 1)
         {
             for (int h_f = 0; h_f < H_f; h_f += 1)
