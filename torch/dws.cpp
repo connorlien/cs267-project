@@ -353,7 +353,7 @@ void dws_conv(float *X, float *F_DW, float *F_1D, float *O, int B, int H_in, int
     pw_conv(depthwise_output, F_1D, O, B, H_out, W_out, C_in * N_dw, C_out);
 }
 
-torch::Tensor dws_conv_torch(torch::Tensor input, torch::Tensor kernel_dw, torch::Tensor kernel_pw, torch::Tensor output, int stride_h, int stride_w)
+torch::Tensor dws_conv_torch(torch::Tensor input, torch::Tensor kernel_dw, torch::Tensor kernel_pw, int stride)
 {
     float *X = input.data_ptr<float>();
     float *F_DW = kernel_dw.data_ptr<float>();
@@ -366,16 +366,17 @@ torch::Tensor dws_conv_torch(torch::Tensor input, torch::Tensor kernel_dw, torch
     int H_f = kernel_dw.sizes()[2];
     int W_f = kernel_dw.sizes()[3];
     int N_dw = 1;
-    int H_out = floor((H_in - H_f) / stride_h + 1);
-    int W_out = floor((W_in - W_f) / stride_w + 1);
+    int H_out = floor((H_in - H_f) / stride + 1);
+    int W_out = floor((W_in - W_f) / stride + 1);
     int C_out = C_in;
 
     float* O = (float *) calloc(B * C_out * W_out * H_out, sizeof(float));
     float* depthwise_output = (float *) calloc(B * W_out * H_out * C_in * N_dw, sizeof(float));
 
-    dws_conv(X, F_DW, F_1D, O, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
-    auto options = torch::TensorOptions().dtype(torch::kFloat64);
-    return torch::from_blob(O, { B, C_out, H_out, W_out }, options);
+    dws_conv(X, F_DW, F_1D, O, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride, stride, depthwise_output);
+    
+    torch::Tensor result = torch::from_blob(O, {B, C_out, H_out, W_out}, torch::dtype(torch::kFloat32)).clone();
+    return result;
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {

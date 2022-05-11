@@ -49,6 +49,11 @@ def read_input(in_file):
 
 def test(fname, eps = 1e-5):
   args, X, F2d, F1d, Y = read_input(fname)
+  print(args)
+  print(X.shape)
+  print(F2d.shape)
+  print(F1d.shape)
+  print(Y.shape)
   conv = nn.Conv2d(in_channels=int(args[3]), out_channels=int(args[3]), kernel_size=int(args[4]), stride=int(args[10]), groups=int(args[3]), bias=False)
   conv.weight = torch.nn.Parameter(F2d)
   point_conv = nn.Conv2d(in_channels=int(args[3]), out_channels=int(args[9]), kernel_size=1, bias=False)
