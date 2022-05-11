@@ -51,24 +51,21 @@ static void dw_conv_blocked(float *X, float *F_DW, float *O, int B, int H_in, in
     int W_f_b = min(WIDTH_FILTER_BLOCK_DW, W_f - w_f_);
     int H_f_b = min(HEIGHT_FILTER_BLOCK_DW, H_f - h_f_);
 
-    for (int b = 0; b < B_b; b += 1)
+    for (int f = 0; f < F_b; f += 1)
     {
-        // PTRS TO IMG IN BATCH
-        float *curr_img = X + (b + b_) * img_size;
-        float *curr_out = O + (b + b_) * temp_out_size;
-        for (int c = 0; c < C_b; c += 1)
+        for (int b = 0; b < B_b; b += 1)
         {
-            // Do 2D Convolution channelwise
-            float *curr_channel = curr_img + mat_size * (c + c_);
-            // Filters are 2D
-            for (int f = 0; f < F_b; f += 1)
+            // PTRS TO IMG IN BATCH
+            float *curr_img = X + (b + b_) * img_size;
+            float *curr_out = O + (b + b_) * temp_out_size;
+            for (int c = 0; c < C_b; c += 1)
             {
+                float *curr_channel = curr_img + mat_size * (c + c_);
+            
                 for (int h = 0; h < H_b; h += 1)
                 {
                     for (int w = 0; w < W_b; w += 1)
                     {
-                        // MICROKERNEL - tile if needed.
-
                         // PTR TO OUTPUT POSITION
                         float *curr_out_xy = curr_out + temp_out_img_size * ((c + c_) * N_dw + (f_ + f)) + row_major((h + h_), (w + w_), W_out);
 
@@ -100,11 +97,11 @@ static void dw_conv_blocked(float *X, float *F_DW, float *O, int B, int H_in, in
 static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
     #pragma omp parallel for collapse(5)
-    for (int b = 0; b < B; b += BATCH_BLOCK_DW)
+    for (int f = 0; f < N_dw; f += FILTER_DW)
     {
-        for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
+        for (int b = 0; b < B; b += BATCH_BLOCK_DW)
         {
-            for (int f = 0; f < N_dw; f += FILTER_DW)
+            for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
             {
                 for (int h = 0; h < H_out; h += HEIGHT_BLOCK_DW)
                 {

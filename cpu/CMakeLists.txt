@@ -13,7 +13,7 @@ if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 endif ()
 
 # Common library target for benchmarking.
-add_library(benchmark OBJECT benchmark-direct.cpp)
+add_library(benchmark OBJECT benchmark-cpu.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
 
 foreach (BENCHMARK IN ITEMS direct single blocked microkernel omp single-blocked)
