@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from time import perf_counter
 from torch import nn
-from _ext import dws_torch
+import dws_cpp
 
 def get_input():
     args = [2.0, 4.0, 4.0, 3.0, 2.0, 2.0, 1.0, 2.0, 2.0, 3.0, 2.0, 2.0]

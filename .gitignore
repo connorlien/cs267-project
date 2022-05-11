@@ -51,6 +51,9 @@ Thumbs.db
 # Build files.
 cmake-build-debug
 build
-gpu/build
+
+# Tutorial files/
+tutorial
+*.egg-info
 
 .vscode

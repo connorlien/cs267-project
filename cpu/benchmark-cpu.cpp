@@ -191,7 +191,7 @@ void benchmark(bool all_sizes = false) {
     int W_out = 2;
     int H_out = 2;
     
-    int N_dw = 3;
+    int N_dw = 1;
     int H_f = 2;
     int W_f = 2;
 
@@ -273,7 +273,7 @@ void run(int argc, char** argv) {
     int W_out = find_int_arg(argc, argv, "-W_out", 2);
     int H_out = find_int_arg(argc, argv, "-H_out", 2);
     
-    int N_dw = find_int_arg(argc, argv, "-N_dw", 1); // FOR TESTING.
+    int N_dw = find_int_arg(argc, argv, "-N_dw", 1);
     int H_f = find_int_arg(argc, argv, "-H_f", 2);
     int W_f = find_int_arg(argc, argv, "-W_f", 2);
 
