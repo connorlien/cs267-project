@@ -124,13 +124,21 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
     }
 }
 
-void pw_microkernel_1x1x8x1(float *input, float *filter, float *output, int mat_size)
+void pw_microkernel_1x1x16x1(float *input, float *filter, float *output, int mat_size)
 {
     // Declare
-    __m512d a, b, c;
+    __m512 a, b, c;
 
     // Load
-    a = _mm512_set_pd(*(input + mat_size * (7)),
+    a = _mm512_set_ps(*(input + mat_size * (15)),
+                      *(input + mat_size * (14)),
+                      *(input + mat_size * (13)),
+                      *(input + mat_size * (12)),
+                      *(input + mat_size * (11)),
+                      *(input + mat_size * (10)),
+                      *(input + mat_size * (9)),
+                      *(input + mat_size * (8)),
+                      *(input + mat_size * (7)),
                       *(input + mat_size * (6)),
                       *(input + mat_size * (5)),
                       *(input + mat_size * (4)),
@@ -138,22 +146,32 @@ void pw_microkernel_1x1x8x1(float *input, float *filter, float *output, int mat_
                       *(input + mat_size * (2)),
                       *(input + mat_size * (1)),
                       *(input + mat_size * (0)));
-    b = _mm512_loadu_pd(filter);
-    c = _mm512_mul_pd(a, b);
+                      
+    b = _mm512_loadu_ps(filter);
+
+    c = _mm512_mul_ps(a, b);
 
     // Store
-    *output += _mm512_reduce_add_pd(c);
+    *output += _mm512_reduce_add_ps(c);
 }
 
-void pw_microkernel_1x1x8x8(float *input, float *filter, float *output, int mat_size, int C_in)
+void pw_microkernel_1x1x16x16(float *input, float *filter, float *output, int mat_size, int C_in)
 {
     // Declare
-    __m512d a;
-    __m512d b0, b1, b2, b3, b4, b5, b6, b7;
-    __m512d c0, c1, c2, c3, c4, c5, c6, c7;
+    __m512 a;
+    __m512 b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15;
+    __m512 c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15;
 
     // Load
-    a = _mm512_set_pd(*(input + mat_size * (7)),
+    a = _mm512_set_ps(*(input + mat_size * (15)),
+                      *(input + mat_size * (14)),
+                      *(input + mat_size * (13)),
+                      *(input + mat_size * (12)),
+                      *(input + mat_size * (11)),
+                      *(input + mat_size * (10)),
+                      *(input + mat_size * (9)),
+                      *(input + mat_size * (8)),
+                      *(input + mat_size * (7)),
                       *(input + mat_size * (6)),
                       *(input + mat_size * (5)),
                       *(input + mat_size * (4)),
@@ -162,33 +180,57 @@ void pw_microkernel_1x1x8x8(float *input, float *filter, float *output, int mat_
                       *(input + mat_size * (1)),
                       *(input + mat_size * (0)));
 
-    b0 = _mm512_loadu_pd(filter);
-    b1 = _mm512_loadu_pd(filter + C_in * 1);
-    b2 = _mm512_loadu_pd(filter + C_in * 2);
-    b3 = _mm512_loadu_pd(filter + C_in * 3);
-    b4 = _mm512_loadu_pd(filter + C_in * 4);
-    b5 = _mm512_loadu_pd(filter + C_in * 5);
-    b6 = _mm512_loadu_pd(filter + C_in * 6);
-    b7 = _mm512_loadu_pd(filter + C_in * 7);
+    b0 = _mm512_loadu_ps(filter);
+    b1 = _mm512_loadu_ps(filter + C_in * 1);
+    b2 = _mm512_loadu_ps(filter + C_in * 2);
+    b3 = _mm512_loadu_ps(filter + C_in * 3);
+    b4 = _mm512_loadu_ps(filter + C_in * 4);
+    b5 = _mm512_loadu_ps(filter + C_in * 5);
+    b6 = _mm512_loadu_ps(filter + C_in * 6);
+    b7 = _mm512_loadu_ps(filter + C_in * 7);
+    b8 = _mm512_loadu_ps(filter + C_in * 8);
+    b9 = _mm512_loadu_ps(filter + C_in * 9);
+    b10 = _mm512_loadu_ps(filter + C_in * 10);
+    b11 = _mm512_loadu_ps(filter + C_in * 11);
+    b12 = _mm512_loadu_ps(filter + C_in * 12);
+    b13 = _mm512_loadu_ps(filter + C_in * 13);
+    b14 = _mm512_loadu_ps(filter + C_in * 14);
+    b15 = _mm512_loadu_ps(filter + C_in * 15);
 
-    c0 = _mm512_mul_pd(a, b0);
-    c1 = _mm512_mul_pd(a, b1);
-    c2 = _mm512_mul_pd(a, b2);
-    c3 = _mm512_mul_pd(a, b3);
-    c4 = _mm512_mul_pd(a, b4);
-    c5 = _mm512_mul_pd(a, b5);
-    c6 = _mm512_mul_pd(a, b6);
-    c7 = _mm512_mul_pd(a, b7);
+    c0 = _mm512_mul_ps(a, b0);
+    c1 = _mm512_mul_ps(a, b1);
+    c2 = _mm512_mul_ps(a, b2);
+    c3 = _mm512_mul_ps(a, b3);
+    c4 = _mm512_mul_ps(a, b4);
+    c5 = _mm512_mul_ps(a, b5);
+    c6 = _mm512_mul_ps(a, b6);
+    c7 = _mm512_mul_ps(a, b7);
+    c8 = _mm512_mul_ps(a, b8);
+    c9 = _mm512_mul_ps(a, b9);
+    c10 = _mm512_mul_ps(a, b10);
+    c11 = _mm512_mul_ps(a, b11);
+    c12 = _mm512_mul_ps(a, b12);
+    c13 = _mm512_mul_ps(a, b13);
+    c14 = _mm512_mul_ps(a, b14);
+    c15 = _mm512_mul_ps(a, b15);
 
     // Store
-    *output += _mm512_reduce_add_pd(c0);
-    *(output + C_in * 1) += _mm512_reduce_add_pd(c1);
-    *(output + C_in * 2) += _mm512_reduce_add_pd(c2);
-    *(output + C_in * 3) += _mm512_reduce_add_pd(c3);
-    *(output + C_in * 4) += _mm512_reduce_add_pd(c4);
-    *(output + C_in * 5) += _mm512_reduce_add_pd(c5);
-    *(output + C_in * 6) += _mm512_reduce_add_pd(c6);
-    *(output + C_in * 7) += _mm512_reduce_add_pd(c7);
+    *output += _mm512_reduce_add_ps(c0);
+    *(output + C_in * 1) += _mm512_reduce_add_ps(c1);
+    *(output + C_in * 2) += _mm512_reduce_add_ps(c2);
+    *(output + C_in * 3) += _mm512_reduce_add_ps(c3);
+    *(output + C_in * 4) += _mm512_reduce_add_ps(c4);
+    *(output + C_in * 5) += _mm512_reduce_add_ps(c5);
+    *(output + C_in * 6) += _mm512_reduce_add_ps(c6);
+    *(output + C_in * 7) += _mm512_reduce_add_ps(c7);
+    *(output + C_in * 8) += _mm512_reduce_add_ps(c8);
+    *(output + C_in * 9) += _mm512_reduce_add_ps(c9);
+    *(output + C_in * 10) += _mm512_reduce_add_ps(c10);
+    *(output + C_in * 11) += _mm512_reduce_add_ps(c11);
+    *(output + C_in * 12) += _mm512_reduce_add_ps(c12);
+    *(output + C_in * 13) += _mm512_reduce_add_ps(c13);
+    *(output + C_in * 14) += _mm512_reduce_add_ps(c14);
+    *(output + C_in * 15) += _mm512_reduce_add_ps(c15);
 }
 
 void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b, int W_b, int H_b, int C_b, int b_, int f_, int w_, int h_, int c_, float *F_1D, float *O, float *X)
@@ -202,7 +244,7 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
         float *curr_img = X + (b_ + b) * img_size;
         float *curr_out = O + (b_ + b) * out_size;
         int f = 0;
-        for (; f < F_b / 8 * 8; f += 8)
+        for (; f < F_b / 16 * 16; f += 16)
         {
             for (int h = 0; h < H_b; h += 1)
             {
@@ -210,11 +252,11 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
                 {
                     float *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
                     int c = 0;
-                    for (; c < C_b / 8 * 8; c += 8)
+                    for (; c < C_b / 16 * 16; c += 16)
                     {
                         float *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
                         float *f_curr = F_1D + (f + f_) * C_in + (c + c_);
-                        pw_microkernel_1x1x8x8(inp_curr, f_curr, o_curr, mat_size, C_in);
+                        pw_microkernel_1x1x16x16(inp_curr, f_curr, o_curr, mat_size, C_in);
                     }
                     for (; c < C_b; c += 1)
                     {
@@ -233,11 +275,11 @@ void pw_blocked(int B, int H_in, int W_in, int C_in, int C_out, int B_b, int F_b
                 {
                     float *o_curr = curr_out + mat_size * (f + f_) + row_major((h + h_), (w + w_), W_in);
                     int c = 0;
-                    for (; c < C_b / 8 * 8; c += 8)
+                    for (; c < C_b / 16 * 16; c += 16)
                     {
                         float *inp_curr = curr_img + mat_size * (c + c_) + row_major((h + h_), (w + w_), W_in);
                         float *f_curr = F_1D + (f + f_) * C_in + (c + c_);
-                        pw_microkernel_1x1x8x1(inp_curr, f_curr, o_curr, mat_size);
+                        pw_microkernel_1x1x16x1(inp_curr, f_curr, o_curr, mat_size);
                     }
                     for (; c < C_b; c += 1)
                     {
