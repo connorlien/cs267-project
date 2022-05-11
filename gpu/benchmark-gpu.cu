@@ -7,7 +7,6 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
-#include <cblas.h>
 #include <stdio.h>
 #include <curand.h>
 #include <curand_kernel.h>

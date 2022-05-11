@@ -99,7 +99,7 @@ static void dw_conv_blocked(double *X, double *F_DW, double *O, int B, int H_in,
 
 static void dw_conv(double *X, double *F_DW, double *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int stride_h, int stride_w)
 {
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(5)
     for (int b = 0; b < B; b += BATCH_BLOCK_DW)
     {
         for (int c = 0; c < C_in; c += CHANNEL_BLOCK_DW)
@@ -256,13 +256,13 @@ static void pw_conv(double *X, double *F_1D, double *O, int B, int H_in, int W_i
     #pragma omp parallel for collapse(4)
     for (int b = 0; b < B; b += BATCH_BLOCK_PW)
     {
-        for (int c = 0; c < C_in; c += CHANNEL_BLOCK_PW)
+        for (int f = 0; f < C_out; f += FILTER_BLOCK_PW)
         {
-            for (int f = 0; f < C_out; f += FILTER_BLOCK_PW)
+            for (int h = 0; h < H_in; h += HEIGHT_BLOCK_PW)
             {
-                for (int h = 0; h < H_in; h += HEIGHT_BLOCK_PW)
+                for (int w = 0; w < W_in; w += WIDTH_BLOCK_PW)                
                 {
-                    for (int w = 0; w < W_in; w += WIDTH_BLOCK_PW)                
+                    for (int c = 0; c < C_in; c += CHANNEL_BLOCK_PW)
                     {
                         int H_b = min(HEIGHT_BLOCK_PW, H_in - h);
                         int F_b = min(FILTER_BLOCK_PW, C_out - f);

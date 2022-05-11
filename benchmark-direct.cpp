@@ -7,15 +7,12 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
-#include <cblas.h>
 #include <stdio.h>
 
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
-extern "C" {
-    extern void dws_conv(double*, double*, double*, double*, int, int, int, int, int, int, int, int, int, int, int, int, double*);
-    extern void init_conv(int, int, int, int, int, int, int, int, int, int, int, int);
-}
+extern void dws_conv(double*, double*, double*, double*, int, int, int, int, int, int, int, int, int, int, int, int, double*);
+extern void init_conv(int, int, int, int, int, int, int, int, int, int, int, int);
 
 // =================
 // Helper Functions
