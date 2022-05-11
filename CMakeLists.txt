@@ -21,7 +21,7 @@ foreach (BENCHMARK IN ITEMS direct single blocked microkernel omp single-blocked
     add_executable(benchmark-${BENCHMARK} dws-${BENCHMARK}.cpp)
     target_link_libraries(benchmark-${BENCHMARK} PRIVATE benchmark OpenMP::OpenMP_CXX)
     target_compile_features(benchmark-${BENCHMARK} PRIVATE c_std_11 c_restrict)
-    target_compile_options(benchmark-${BENCHMARK} PRIVATE -Wall -pedantic -march=knl)
+    target_compile_options(benchmark-${BENCHMARK} PRIVATE -Wall -pedantic -march=knl -ffast-math)
 
     # Generate job script
     configure_file(job.in job-${BENCHMARK})
