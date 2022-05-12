@@ -7,21 +7,18 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
-#include <cblas.h>
 #include <stdio.h>
 
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
-extern "C" {
-    extern void dws_conv(double*, double*, double*, double*, int, int, int, int, int, int, int, int, int, int, int, int, double*);
-    extern void init_conv(int, int, int, int, int, int, int, int, int, int, int, int);
-}
+extern void dws_conv(float*, float*, float*, float*, int, int, int, int, int, int, int, int, int, int, int, int, float*);
+extern void init_conv(int, int, int, int, int, int, int, int, int, int, int, int);
 
 // =================
 // Helper Functions
 // =================
 // I/O routines
-void save_tensor(std::ofstream& fsave, double *tensor, int size, const char *name) {
+void save_tensor(std::ofstream& fsave, float *tensor, int size, const char *name) {
     fsave << name << std::endl;
     for (int i = 0; i < size; ++i) {
         fsave << tensor[i] << " ";
@@ -61,7 +58,7 @@ char* find_string_option(int argc, char** argv, const char* option, char* defaul
 }
 
 // Tensor helper functions
-void fill(double* p, int n, int seed) {
+void fill(float* p, int n, int seed) {
     static std::random_device rd;
     static std::default_random_engine gen(seed ? seed : rd());
     static std::uniform_real_distribution<> dis(-1.0, 1.0);
@@ -70,27 +67,27 @@ void fill(double* p, int n, int seed) {
     }
 }
 
-void fillDet(double* p, int n){
+void fillDet(float* p, int n){
     for (int i = 0; i < n; ++i){
 	    p[i] = i + 1.0;
     }
 }
 
-void fillConst(double* p, int n, double k){
+void fillConst(float* p, int n, float k){
     for (int i = 0; i < n; ++i) {
         p[i] = k;
 	}
 }
 
-void fillOne(double* p, int n){
+void fillOne(float* p, int n){
     fillConst(p, n, 1.0);
 }
 
-void fillZero(double* p, int n){
+void fillZero(float* p, int n){
     fillConst(p, n, 0.0);
 }
 
-void printTensor(double* p, int B, int W, int H, int C) {
+void printTensor(float* p, int B, int W, int H, int C) {
     // for (int i = 0; i < n * n; ++i) {
     //     if (i > 0 && i % n == 0) {
     //         fprintf(stderr, "\n");
@@ -106,7 +103,7 @@ void printTensor(double* p, int B, int W, int H, int C) {
             fprintf(stderr, "Channel %d \n", c);
             for (int w = 0; w < W; w += 1) {
                 for (int h = 0; h < H; h += 1) {
-                    double val = *(p + b * img_size + c * mat_size + row_major(h, w, W));
+                    float val = *(p + b * img_size + c * mat_size + row_major(h, w, W));
                     fprintf(stderr, "%f ", val);
                 }
                 fprintf(stderr, "\n");
@@ -194,7 +191,7 @@ void benchmark(bool all_sizes = false) {
     int W_out = 2;
     int H_out = 2;
     
-    int N_dw = 3;
+    int N_dw = 1;
     int H_f = 2;
     int W_f = 2;
 
@@ -202,11 +199,11 @@ void benchmark(bool all_sizes = false) {
     int stride_h = 2;
     int stride_w = 2;
 
-    double* input = (double *) calloc(B * C_in * nmax * nmax, sizeof(double));
-    double* F_DW = (double *) calloc(N_dw * C_in * kmax * kmax, sizeof(double));
-    double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
-    double* output = (double *) calloc(B * C_out * nmax * nmax, sizeof(double));
-    double *depthwise_output = (double *) calloc(B * nmax * nmax * C_in * N_dw, sizeof(double));
+    float* input = (float *) calloc(B * C_in * nmax * nmax, sizeof(float));
+    float* F_DW = (float *) calloc(N_dw * C_in * kmax * kmax, sizeof(float));
+    float* F_1D = (float *) calloc(N_1d * C_in * N_dw, sizeof(float));
+    float* output = (float *) calloc(B * C_out * nmax * nmax, sizeof(float));
+    float *depthwise_output = (float *) calloc(B * nmax * nmax * C_in * N_dw, sizeof(float));
 
     /* For each tensor size */
     int idx = 0;
@@ -276,7 +273,7 @@ void run(int argc, char** argv) {
     int W_out = find_int_arg(argc, argv, "-W_out", 2);
     int H_out = find_int_arg(argc, argv, "-H_out", 2);
     
-    int N_dw = find_int_arg(argc, argv, "-N_dw", 1); // FOR TESTING.
+    int N_dw = find_int_arg(argc, argv, "-N_dw", 1);
     int H_f = find_int_arg(argc, argv, "-H_f", 2);
     int W_f = find_int_arg(argc, argv, "-W_f", 2);
 
@@ -284,11 +281,11 @@ void run(int argc, char** argv) {
     int stride_h = find_int_arg(argc, argv, "-stride_h", 2);
     int stride_w = find_int_arg(argc, argv, "-stride_w", 2);
 
-    double* input = (double *) calloc(B * C_in * W_in * H_in, sizeof(double));
-    double* F_DW = (double *) calloc(N_dw * C_in * H_f * W_f, sizeof(double));
-    double* F_1D = (double *) calloc(N_1d * C_in * N_dw, sizeof(double));
-    double* output = (double *) calloc(B * C_out * W_out * H_out, sizeof(double));
-    double *depthwise_output = (double *) calloc(B * W_out * H_out * C_in * N_dw, sizeof(double));
+    float* input = (float *) calloc(B * C_in * W_in * H_in, sizeof(float));
+    float* F_DW = (float *) calloc(N_dw * C_in * H_f * W_f, sizeof(float));
+    float* F_1D = (float *) calloc(N_1d * C_in * N_dw, sizeof(float));
+    float* output = (float *) calloc(B * C_out * W_out * H_out, sizeof(float));
+    float *depthwise_output = (float *) calloc(B * W_out * H_out * C_in * N_dw, sizeof(float));
 
     fill(input, B * C_in * W_in * H_in, seed);
     fill(F_DW, N_dw * C_in * H_f * W_f, seed);
