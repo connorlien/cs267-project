@@ -21,7 +21,7 @@ class DwsConv(torch.nn.Module):
         self.weight_dw = torch.nn.Parameter(torch.empty(in_channels, 1, kernel_size, kernel_size))
         self.weight_pw = torch.nn.Parameter(torch.empty(in_channels, out_channels, 1, 1))
         dws_cpp.init_conv(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-        if torch.gpu.is_available():
+        if torch.cuda.is_available():
             dws_gpu_cpp.init_conv(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
 
     def forward(self, input):
