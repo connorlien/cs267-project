@@ -4,12 +4,14 @@ from time import perf_counter
 from torch import nn
 from dws import DwsConv
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 def get_input(B, H, W):
     args = [2.0, 4.0, 4.0, 3.0, 2.0, 2.0, 1.0, 2.0, 2.0, 3.0, 2.0, 2.0]
-    X = torch.rand(B, 3, H, W)
-    F2d = torch.rand(3, 1, 2, 2)
-    F1d = torch.rand(3, 3, 1, 1)
-    Y = torch.rand(B, 3, H, W)
+    X = torch.rand(B, 3, H, W).to(device)
+    F2d = torch.rand(3, 1, 2, 2).to(device)
+    F1d = torch.rand(3, 3, 1, 1).to(device)
+    Y = torch.rand(B, 3, H, W).to(device)
     return args, X, F2d, F1d, Y
 
 def test_torch(args, X, F2d, F1d, Y):
@@ -21,8 +23,7 @@ def test_torch(args, X, F2d, F1d, Y):
     time_before = perf_counter()
     out = depthwise_separable_conv(X)
     time_after = perf_counter()
-    print("PyTorch completed in %f seconds with %d threads" \
-        % (time_after - time_before, torch.get_num_threads()))
+    print("Custom completed in %f seconds" % (time_after - time_before))
     return out
 
 def test_custom(args, X, F2d, F1d, Y):
@@ -32,16 +33,22 @@ def test_custom(args, X, F2d, F1d, Y):
     time_before = perf_counter()
     out = conv(X)
     time_after = perf_counter()
-    print("Custom completed in %f seconds with %d threads" \
-        % (time_after - time_before, torch.get_num_threads()))
+    print("Custom completed in %f seconds" % (time_after - time_before))
     return out
 
 # Compute convolutions
 i = get_input(128, 512, 512)
+using_gpu = torch.cuda.is_available()
+print("Using", "GPU" if using_gpu else "CPU")
+if not using_gpu:
+    print("Number of CPU threads:", torch.get_num_threads())
 out1 = test_torch(*i)
 out2 = test_custom(*i)
+if using_gpu:
+    out1 = out1.cpu()
+    out2 = out2.cpu()
 
 # Test correctness
 eps = 1e-5
-assert (out1 - out2).abs().max().item() <= eps, "FAILED CORRECTNESS"
+assert (out1.cpu() - out2.cpu()).abs().max().item() <= eps, "FAILED CORRECTNESS"
 print("Passed Correctness!")

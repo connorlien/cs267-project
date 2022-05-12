@@ -1,10 +1,13 @@
 import math
 import torch
 import dws_cpp
+import dws_gpu_cpp
 
 class DwsConvFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, filter_dw, filter_pw, stride):
+        if input.is_cuda:
+            return dws_gpu_cpp.dws_conv(input, filter_dw, filter_pw, stride)
         return dws_cpp.dws_conv(input, filter_dw, filter_pw, stride)
 
 class DwsConv(torch.nn.Module):
@@ -13,7 +16,8 @@ class DwsConv(torch.nn.Module):
         self.stride = stride
         self.weight_dw = torch.nn.Parameter(torch.empty(in_channels, 1, kernel_size, kernel_size))
         self.weight_pw = torch.nn.Parameter(torch.empty(in_channels, out_channels, 1, 1))
-        dws_cpp.init_conv(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+        # dws_cpp.init_conv(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+        # dws_gpu_cpp.init_conv(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
 
     def forward(self, input):
         return DwsConvFunction.apply(input, self.weight_dw, self.weight_pw, self.stride)
