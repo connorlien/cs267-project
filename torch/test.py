@@ -8,10 +8,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def get_input(B, H, W):
     args = [2.0, 4.0, 4.0, 3.0, 2.0, 2.0, 1.0, 2.0, 2.0, 3.0, 2.0, 2.0]
-    X = torch.rand(B, 3, H, W).to(device)
-    F2d = torch.rand(3, 1, 2, 2).to(device)
-    F1d = torch.rand(3, 3, 1, 1).to(device)
-    Y = torch.rand(B, 3, H, W).to(device)
+    X = torch.rand(B, 3, H, W, requires_grad=False).to(device)
+    F2d = torch.rand(3, 1, 2, 2, requires_grad=False).to(device)
+    F1d = torch.rand(3, 3, 1, 1, requires_grad=False).to(device)
+    Y = torch.rand(B, 3, H, W, requires_grad=False).to(device)
     return args, X, F2d, F1d, Y
 
 def test_torch(args, X, F2d, F1d, Y):
@@ -23,7 +23,7 @@ def test_torch(args, X, F2d, F1d, Y):
     time_before = perf_counter()
     out = depthwise_separable_conv(X)
     time_after = perf_counter()
-    print("Custom completed in %f seconds" % (time_after - time_before))
+    print("PyTorch completed in %f seconds" % (time_after - time_before))
     return out
 
 def test_custom(args, X, F2d, F1d, Y):
