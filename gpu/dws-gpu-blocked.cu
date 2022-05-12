@@ -85,7 +85,6 @@ __global__ void dw_conv_gpu(float *X, float *F_DW, float *O, int B, int H_in, in
 
 __device__ void pw_conv_gpu_blocked(float *X, float *F_1D, float *O, int B, int H_in, int W_in, int C_in, int C_out, int b, int f_, int w, int h, int c_)
 {
-
     int mat_size = W_in * H_in;
     int img_size = mat_size * C_in;
     int out_size = mat_size * C_out;
@@ -126,16 +125,6 @@ __global__ void pw_conv_gpu(float *X, float *F_1D, float *O, int B, int H_in, in
             pw_conv_gpu_blocked(X, F_1D, O, B, H_in, W_in, C_in, C_out, b, f, w, h, c);
         }
     }
-}
-
-void print_tensor(float *X, int size, const char *name)
-{
-    fprintf(stderr, "%s\n", name);
-    for (int i = 0; i < size; i += 1)
-    {
-        fprintf(stderr, "%f ", X[i]);
-    }
-    fprintf(stderr, "\n");
 }
 
 __global__ void init_conv_gpu(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw) {

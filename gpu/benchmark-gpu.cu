@@ -13,7 +13,6 @@
 #include <curand_kernel.h>
 #include "dws-gpu.h"
 
-
 #define row_major(i, j, num_rows) ((i) * (num_rows) + (j))
 
 // =================
@@ -70,9 +69,6 @@ void fill(float* p, int n, int seed) {
 }
 
 __global__ void fillGpu(float* p, int n, int seed) {
-    // static std::random_device rd;
-    // static std::default_random_engine gen(seed ? seed : rd());
-    // static std::uniform_real_distribution<> dis(-1.0, 1.0);
     curandState state;
     curand_init(seed, 0, 0, &state);
     for (int i = 0; i < n; ++i) {
@@ -107,12 +103,6 @@ __global__ void fillZeroGpu(float* p, int n){
 }
 
 void printTensor(float* p, int B, int W, int H, int C) {
-    // for (int i = 0; i < n * n; ++i) {
-    //     if (i > 0 && i % n == 0) {
-    //         fprintf(stderr, "\n");
-    //     }
-    //     fprintf(stderr, "%f ", p[i]);
-	// }
     int mat_size = H * W;
     int img_size = mat_size * C;
 

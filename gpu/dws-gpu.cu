@@ -86,16 +86,6 @@ __global__ void pw_conv_gpu(float *X, float *F_1D, float *O, int B, int H_in, in
     }
 }
 
-void print_tensor(float *X, int size, const char *name)
-{
-    fprintf(stderr, "%s\n", name);
-    for (int i = 0; i < size; i += 1)
-    {
-        fprintf(stderr, "%f ", X[i]);
-    }
-    fprintf(stderr, "\n");
-}
-
 void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw) {
 }
 
