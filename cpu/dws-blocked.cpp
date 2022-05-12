@@ -174,21 +174,6 @@ void print_tensor(float *X, int size, const char *name)
 
 void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw) {
 
-    // b, ci, co, wo, ho, wf, hf [2, 2, 4, 19, 19, 19, 2, 19, 2]
-    /* BATCH_BLOCK_PW = 2;
-    FILTER_BLOCK_PW = 2;
-    WIDTH_BLOCK_PW = 19;
-    HEIGHT_BLOCK_PW = 19;
-    CHANNEL_BLOCK_PW = 4;
-
-    BATCH_BLOCK_DW = 2;
-    CHANNEL_BLOCK_DW = 2;
-    FILTER_DW = 4;
-    HEIGHT_BLOCK_DW = 19;
-    WIDTH_BLOCK_DW = 19;
-    HEIGHT_FILTER_BLOCK_DW = 2;
-    WIDTH_FILTER_BLOCK_DW = 2; */
-
     BATCH_BLOCK_PW = bbpw;
     FILTER_BLOCK_PW = fbpw;
     WIDTH_BLOCK_PW = wbpw;

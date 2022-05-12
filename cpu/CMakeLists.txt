@@ -16,13 +16,29 @@ endif ()
 add_library(benchmark OBJECT benchmark-cpu.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
 
-foreach (BENCHMARK IN ITEMS direct single blocked microkernel omp single-blocked)
+foreach (BENCHMARK IN ITEMS direct single blocked microkernel omp single-blocked simd)
     # Create benchmarking executable
     add_executable(benchmark-${BENCHMARK} dws-${BENCHMARK}.cpp)
     target_link_libraries(benchmark-${BENCHMARK} PRIVATE benchmark OpenMP::OpenMP_CXX)
     target_compile_features(benchmark-${BENCHMARK} PRIVATE c_std_11 c_restrict)
-    target_compile_options(benchmark-${BENCHMARK} PRIVATE -Wall -pedantic -march=knl -ffast-math)
+    target_compile_options(benchmark-${BENCHMARK} PRIVATE -Wall -pedantic -march=knl -ffast-math -Ofast)
 
     # Generate job script
     configure_file(job.in job-${BENCHMARK})
+endforeach ()
+
+
+# Common library target for sweeping.
+add_library(sweep OBJECT sweep-cpu.cpp)
+target_compile_features(sweep PRIVATE cxx_std_11)
+
+foreach (SWEEP IN ITEMS omp)
+    # Create sweeping executable
+    add_executable(sweep-${SWEEP} dws-${SWEEP}.cpp)
+    target_link_libraries(sweep-${SWEEP} PRIVATE sweep OpenMP::OpenMP_CXX)
+    target_compile_features(sweep-${SWEEP} PRIVATE c_std_11 c_restrict)
+    target_compile_options(sweep-${SWEEP} PRIVATE -Wall -pedantic -march=knl -ffast-math)
+
+    # Generate job script
+    configure_file(job.in sweep-job-${SWEEP})
 endforeach ()
