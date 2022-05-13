@@ -23,35 +23,24 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
 
     for (int b_ = 0; b_ < B; b_ += 1)
     {
-        // int B_b = min(BATCH_BLOCK_DW, B - b_);
-
-        // for (int b = 0; b < B_b; b += 1)
-        // {
         for (int c_ = 0; c_ < C_in; c_ += 1)
         {
             for (int h_ = 0; h_ < H_out; h_ += HEIGHT_BLOCK_DW)
             {
-                int H_b = min(HEIGHT_BLOCK_DW, H_out - h_);
                 for (int w_ = 0; w_ < W_out; w_ += WIDTH_BLOCK_DW)
                 {
-                    int W_b = min(WIDTH_BLOCK_DW, W_out - w_);
                     for (int h_f = 0; h_f < H_f; h_f += 1)
                     {
-                        // MICROKERNEL - tile if needed.
-                        for (int w_f = 0; w_f < W_f; w_f += 1)
+                        for (int w_f = 0; w_f < W_f / 3 * 3; w_f += 3)
                         {
-                            // BLOCKING
-                            // PTRS TO IMG IN BATCH
-                            float *curr_img = X + (b_)*img_size;
-                            float *curr_out = O + (b_)*temp_out_size;
-                            // Filters are 2D
-
-                            float *curr_channel = curr_img + mat_size * (c_);
-                            for (int h = 0; h < H_b; h += 1)
+                            for (int h = 0; h < min(HEIGHT_BLOCK_DW, H_out - h_); h += 1)
                             {
-                                for (int w = 0; w < W_b; w += 1)
+                                for (int w = 0; w < min(WIDTH_BLOCK_DW, W_out - w_); w += 1)
                                 {
-                                    // PTR TO CURRENT POSITION IN FILTER
+                                    float *curr_img = X + (b_)*img_size;
+                                    float *curr_out = O + (b_)*temp_out_size;
+
+                                    float *curr_channel = curr_img + mat_size * (c_);
                                     float *f_curr = F_DW + f_size * (c_) + row_major((h_f), (w_f), W_f);
 
                                     // PTR TO INPUT POSITION
@@ -63,7 +52,7 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
                                     float *curr_out_xy = curr_out + temp_out_img_size * (c_) + row_major((h + h_), (w + w_), W_out);
 
                                     // CONVOLVE
-                                    *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
+                                    *curr_out_xy += *f_curr * *curr_inp + *(f_curr + 1) * *(curr_inp + 1) + *(f_curr + 2) * *(curr_inp + 2);
                                 }
                             }
                         }
@@ -74,7 +63,6 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
     }
 }
 
-
 static void pw_conv(float *X, float *F_1D, float *O, int B, int H_in, int W_in, int C_in, int C_out)
 {
     int mat_size = W_in * H_in;
@@ -83,29 +71,26 @@ static void pw_conv(float *X, float *F_1D, float *O, int B, int H_in, int W_in, 
 
     for (int b = 0; b < B; b += BATCH_BLOCK_PW)
     {
-        int B_b = min(BATCH_BLOCK_PW, B - b);
         for (int h = 0; h < H_in; h += HEIGHT_BLOCK_PW)
         {
-            int H_b = min(HEIGHT_BLOCK_PW, H_in - h);
             for (int w = 0; w < W_in; w += WIDTH_BLOCK_PW)
             {
-                int W_b = min(WIDTH_BLOCK_PW, W_in - w);
-                // Blocking
-                for (int b_ = 0; b_ < B_b; b_ += 1)
+                for (int b_ = 0; b_ < min(BATCH_BLOCK_PW, B - b); b_ += 1)
                 {
-                    float *curr_img = X + (b_ + b) * img_size;
-                    float *curr_out = O + (b_ + b) * out_size;
-                    for (int c = 0; c < C_in; c += 1)
+                    for (int f = 0; f < C_out; f += 1)
                     {
-                        float *inp_curr = curr_img + mat_size * c;
-                        for (int f = 0; f < C_out; f += 1)
+                        for (int c = 0; c < C_in; c += 1)
                         {
-                            float *f_curr = F_1D + f * C_in + c;
-                            float *o_curr = curr_out + mat_size * f;
-                            for (int h_ = 0; h_ < H_b; h_ += 1)
+                            for (int h_ = 0; h_ < min(HEIGHT_BLOCK_PW, H_in - h); h_ += 1)
                             {
-                                for (int w_ = 0; w_ < W_b; w_ += 1)
+                                for (int w_ = 0; w_ < min(WIDTH_BLOCK_PW, W_in - w); w_ += 1)
                                 {
+
+                                    float *curr_img = X + (b_ + b) * img_size;
+                                    float *curr_out = O + (b_ + b) * out_size;
+                                    float *inp_curr = curr_img + mat_size * c;
+                                    float *f_curr = F_1D + f * C_in + c;
+                                    float *o_curr = curr_out + mat_size * f;
                                     *(o_curr + row_major((h + h_), (w + w_), W_in)) += (*f_curr) * *(inp_curr + row_major((h + h_), (w + w_), W_in));
                                 }
                             }
