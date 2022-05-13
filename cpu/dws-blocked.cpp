@@ -104,19 +104,19 @@ static void pw_conv(float *X, float *F_1D, float *O, int B, int H_in, int W_in, 
 
 void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw)
 {
+    // BATCH_BLOCK_PW = 4;
+    // WIDTH_BLOCK_PW = 450;
+    // HEIGHT_BLOCK_PW = 450;
 
-    BATCH_BLOCK_PW = 4;
-    WIDTH_BLOCK_PW = 450;
-    HEIGHT_BLOCK_PW = 450;
+    // HEIGHT_BLOCK_DW = 200;
+    // WIDTH_BLOCK_DW = 200;
 
-    BATCH_BLOCK_DW = 4;
-    HEIGHT_BLOCK_DW = 200;
-    WIDTH_BLOCK_DW = 200;
+    BATCH_BLOCK_PW = bbpw;
+    WIDTH_BLOCK_PW = wbpw;
+    HEIGHT_BLOCK_PW = hbpw;
 
-    if (bbpw < 0 || wbpw < 0 || hbpw < 0 || bbdw < 0 || bbdw < 0 || hbdw < 0 || wbdw < 0)
-    {
-        exit(-1);
-    }
+    HEIGHT_BLOCK_DW = hbdw;
+    WIDTH_BLOCK_DW = wbdw;
 }
 
 void dws_conv(float *X, float *F_DW, float *F_1D, float *O, int B, int H_in, int W_in, int C_in, int H_f, int W_f, int N_dw, int H_out, int W_out, int C_out, int stride_h, int stride_w, float *depthwise_output)
