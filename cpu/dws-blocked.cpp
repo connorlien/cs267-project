@@ -21,9 +21,12 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
     int temp_out_img_size = W_out * H_out;
     int temp_out_size = temp_out_img_size * N_dw * C_in;
 
-    for (int b_ = 0; b_ < B; b_ += BATCH_BLOCK_DW)
+    for (int b_ = 0; b_ < B; b_ += 1)
     {
-        int B_b = min(BATCH_BLOCK_DW, B - b_);
+        // int B_b = min(BATCH_BLOCK_DW, B - b_);
+
+        // for (int b = 0; b < B_b; b += 1)
+        // {
         for (int c_ = 0; c_ < C_in; c_ += 1)
         {
             for (int h_ = 0; h_ < H_out; h_ += HEIGHT_BLOCK_DW)
@@ -38,32 +41,29 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
                         for (int w_f = 0; w_f < W_f; w_f += 1)
                         {
                             // BLOCKING
-                            for (int b = 0; b < B_b; b += 1)
+                            // PTRS TO IMG IN BATCH
+                            float *curr_img = X + (b_)*img_size;
+                            float *curr_out = O + (b_)*temp_out_size;
+                            // Filters are 2D
+
+                            float *curr_channel = curr_img + mat_size * (c_);
+                            for (int h = 0; h < H_b; h += 1)
                             {
-                                // PTRS TO IMG IN BATCH
-                                float *curr_img = X + (b + b_) * img_size;
-                                float *curr_out = O + (b + b_) * temp_out_size;
-                                // Filters are 2D
-
-                                float *curr_channel = curr_img + mat_size * (c_);
-                                for (int h = 0; h < H_b; h += 1)
+                                for (int w = 0; w < W_b; w += 1)
                                 {
-                                    for (int w = 0; w < W_b; w += 1)
-                                    {
-                                        // PTR TO CURRENT POSITION IN FILTER
-                                        float *f_curr = F_DW + f_size * (c_) + row_major((h_f), (w_f), W_f);
+                                    // PTR TO CURRENT POSITION IN FILTER
+                                    float *f_curr = F_DW + f_size * (c_) + row_major((h_f), (w_f), W_f);
 
-                                        // PTR TO INPUT POSITION
-                                        int h_curr = (h_f) + stride_h * (h + h_);
-                                        int w_curr = (w_f) + stride_w * (w + w_);
-                                        float *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
+                                    // PTR TO INPUT POSITION
+                                    int h_curr = (h_f) + stride_h * (h + h_);
+                                    int w_curr = (w_f) + stride_w * (w + w_);
+                                    float *curr_inp = curr_channel + row_major(h_curr, w_curr, W_in);
 
-                                        // PTR TO INPUT POSITION
-                                        float *curr_out_xy = curr_out + temp_out_img_size * (c_) + row_major((h + h_), (w + w_), W_out);
+                                    // PTR TO INPUT POSITION
+                                    float *curr_out_xy = curr_out + temp_out_img_size * (c_) + row_major((h + h_), (w + w_), W_out);
 
-                                        // CONVOLVE
-                                        *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
-                                    }
+                                    // CONVOLVE
+                                    *curr_out_xy = *curr_out_xy + *f_curr * *curr_inp;
                                 }
                             }
                         }
@@ -73,6 +73,7 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
         }
     }
 }
+
 
 static void pw_conv(float *X, float *F_1D, float *O, int B, int H_in, int W_in, int C_in, int C_out)
 {
@@ -120,12 +121,12 @@ void init_conv(int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int c
 {
 
     BATCH_BLOCK_PW = 4;
-    WIDTH_BLOCK_PW = 150;
-    HEIGHT_BLOCK_PW = 150;
+    WIDTH_BLOCK_PW = 450;
+    HEIGHT_BLOCK_PW = 450;
 
     BATCH_BLOCK_DW = 4;
-    HEIGHT_BLOCK_DW = 150;
-    WIDTH_BLOCK_DW = 150;
+    HEIGHT_BLOCK_DW = 200;
+    WIDTH_BLOCK_DW = 200;
 
     if (bbpw < 0 || wbpw < 0 || hbpw < 0 || bbdw < 0 || bbdw < 0 || hbdw < 0 || wbdw < 0)
     {

@@ -154,7 +154,7 @@ void benchmark(bool all_sizes = false) {
         tensor_sizes.assign({
             // 4, 8, 16, 31,  32,  96,  97,  127, 128, 129, 191, 192, 229, 255, 256,
             // 257, 319, 320, 321, 417, 479, 480, 511, 512
-            512
+            512, 1100
         });
 
         kernel_sizes.assign({3});
