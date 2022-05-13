@@ -180,7 +180,6 @@ void benchmark(bool all_sizes = false)
 
         bbpw.assign({4, 64, 128, 2000});
         wbpw.assign({50, 250, 500, 2000});
-        bbdw.assign({4, 64, 128, 2000});
         wbdw.assign({50, 250, 500, 2000});
     }
 
@@ -192,7 +191,7 @@ void benchmark(bool all_sizes = false)
     /* Set a seed. */
     int seed = 0;
 
-    //fprintf(stdout, "Starting benchmarking...\n");
+    // fprintf(stdout, "Starting benchmarking...\n");
 
     /* Set default variables and allocate space. */
     int B = 128;
@@ -244,73 +243,70 @@ void benchmark(bool all_sizes = false)
     {
         for (int w_pw : wbpw)
         {
-            for (int b_dw : bbdw)
+            for (int w_dw : wbdw)
             {
-                for (int w_dw : wbdw)
+                // int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw
+                init_conv(b_pw, -1, w_pw, w_pw, -1, b_pw, -1, -1, w_dw, w_dw, -1, -1);
+                // fprintf(stdout, "DW Blocking params: %d %d %d %d \n", b_pw, w_pw, b_pw, w_dw);
+                double total_sweep = 0.0;
+                for (int k : kernel_sizes)
                 {
-                    // int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw
-                    init_conv(b_pw, -1, w_pw, w_pw, -1, b_dw, -1, -1, w_dw, w_dw, -1, -1);
-                    fprintf(stdout, "DW Blocking params: %d %d %d %d \n", b_pw, w_pw, b_dw, w_dw);
-                    double total_sweep = 0.0;
-                    for (int k : kernel_sizes)
+                    /* For each kernel size */
+                    for (int n : tensor_sizes)
                     {
-                        /* For each kernel size */
-                        for (int n : tensor_sizes)
+                        int W_in = n;
+                        int H_in = n;
+                        int H_f = k;
+                        int W_f = k;
+                        int W_out = floor((n - k) / stride_w + 1);
+                        int H_out = floor((n - k) / stride_h + 1);
+
+                        if (H_out == 0 || W_out == 0)
                         {
-                            int W_in = n;
-                            int H_in = n;
-                            int H_f = k;
-                            int W_f = k;
-                            int W_out = floor((n - k) / stride_w + 1);
-                            int H_out = floor((n - k) / stride_h + 1);
-
-                            if (H_out == 0 || W_out == 0)
-                            {
-                                continue;
-                            }
-
-                            fill(input, B * C_in * W_in * H_in, seed);
-                            fill(F_DW, N_dw * C_in * H_f * W_f, seed);
-                            fill(F_1D, N_1d * C_in * N_dw, seed);
-
-                            /* Time a "sufficiently long" sequence of calls to reduce noise */
-                            double avg_time = 0.0, seconds = -1.0;
-                            double timeout = 0.1; // "sufficiently long" := at least 1/10 second.
-                            for (int n_iterations = 1; seconds < timeout; n_iterations *= 2)
-                            {
-                                /* Warm-up */
-                                dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
-
-                                /* Benchmark n_iterations runs of square_dgemm */
-                                auto start = std::chrono::steady_clock::now();
-                                for (int it = 0; it < n_iterations; ++it)
-                                {
-                                    dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
-                                }
-                                auto end = std::chrono::steady_clock::now();
-                                std::chrono::duration<double> diff = end - start;
-                                seconds = diff.count();
-
-                                /*  compute average time */
-                                avg_time = seconds / n_iterations;
-                                total_sweep += avg_time;
-                            }
-
-                            fprintf(stdout, "Tensor Size: %d  \tKernel Size: %d\tTime: %f s\n", n, k, avg_time);
-                            idx += 1;
+                            continue;
                         }
+
+                        fill(input, B * C_in * W_in * H_in, seed);
+                        fill(F_DW, N_dw * C_in * H_f * W_f, seed);
+                        fill(F_1D, N_1d * C_in * N_dw, seed);
+
+                        /* Time a "sufficiently long" sequence of calls to reduce noise */
+                        double avg_time = 0.0, seconds = -1.0;
+                        double timeout = 0.1; // "sufficiently long" := at least 1/10 second.
+                        for (int n_iterations = 1; seconds < timeout; n_iterations *= 2)
+                        {
+                            /* Warm-up */
+                            dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
+
+                            /* Benchmark n_iterations runs of square_dgemm */
+                            auto start = std::chrono::steady_clock::now();
+                            for (int it = 0; it < n_iterations; ++it)
+                            {
+                                dws_conv(input, F_DW, F_1D, output, B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, C_out, stride_h, stride_w, depthwise_output);
+                            }
+                            auto end = std::chrono::steady_clock::now();
+                            std::chrono::duration<double> diff = end - start;
+                            seconds = diff.count();
+
+                            /*  compute average time */
+                            avg_time = seconds / n_iterations;
+                            total_sweep += avg_time;
+                        }
+
+                        // fprintf(stdout, "Tensor Size: %d  \tKernel Size: %d\tTime: %f s\n", n, k, avg_time);
+                        idx += 1;
                     }
-                    fprintf(stdout, "Total time across runs: %f\n\n", total_sweep);
-                    if (total_sweep < fastest)
-                    {
-                        
-                        fastest = total_sweep;
-                        best_b = b_pw;
-                        best_w = w_pw;
-                        best_c = b_dw;
-                        best_wf = w_dw;
-                        fprintf(stdout, "Runtime improved to %f with params: %d %d %d %d \n", total_sweep, best_b, best_w, best_c, best_wf);
-                    }
+                }
+                // fprintf(stdout, "Total time across runs: %f\n\n", total_sweep);
+                if (total_sweep < fastest)
+                {
+
+                    fastest = total_sweep;
+                    best_b = b_pw;
+                    best_w = w_pw;
+                    best_c = b_pw;
+                    best_wf = w_dw;
+                    fprintf(stdout, "Runtime improved to %f with params: %d %d %d %d \n", total_sweep, best_b, best_w, best_c, best_wf);
                 }
             }
         }
