@@ -133,7 +133,6 @@ static void dw_conv(float *X, float *F_DW, float *O, int B, int H_in, int W_in, 
             {
                 for (int w = 0; w < W_out; w += 1)
                 {
-
                     dws_microkernel(curr_img, filters, curr_out + row_major(h, w, W_out), B, H_in, W_in, C_in, H_f, W_f, N_dw, H_out, W_out, stride_h * h, stride_w * w);
                 }
             }

@@ -152,8 +152,9 @@ void benchmark(bool all_sizes = false) {
         wfbd.assign({2, 3, 4, 5, 6, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 1, 3, 4, 5, 5, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 2, 3, 5, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 1, 3, 4, 4, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7});
     } else {
         tensor_sizes.assign({
-            4, 8, 16, 31,  32,  96,  97,  127, 128, 129, 191, 192, 229, 255, 256,
-            257, 319, 320, 321, 417, 479, 480, 511, 512
+            // 4, 8, 16, 31,  32,  96,  97,  127, 128, 129, 191, 192, 229, 255, 256,
+            // 257, 319, 320, 321, 417, 479, 480, 511, 512
+            512
         });
 
         kernel_sizes.assign({3});
@@ -210,8 +211,7 @@ void benchmark(bool all_sizes = false) {
     for (int k : kernel_sizes) {
         /* For each kernel size */
         for (int n : tensor_sizes) {
-            init_conv(bbpw[idx], fbpw[idx], wbpw[idx], hbpw[idx], cbpw[idx],
-            bbdw[idx], cbdw[idx], fdw[idx], hbdw[idx], wbdw[idx], hfdw[idx], wfbd[idx]);
+            init_conv(4000, 1000, 5000, 50000, 1006, 1600, 1600, 1000, 1000, 1000, 1000, 1000);
             
             int W_in = n;
             int H_in = n;
@@ -320,7 +320,7 @@ void run(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
-    init_conv(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+    init_conv(4, 1, 50, 50, 16, 16, 16, 1, 10, 10, 10, 10);
     int bench = find_int_arg(argc, argv, "-benchmark", 0);
     if (bench == 1) {
         bool all_sizes = find_int_arg(argc, argv, "-all", 0) == 1;

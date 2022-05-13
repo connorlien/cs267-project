@@ -4,7 +4,7 @@
 #SBATCH -S 4
 #SBATCH -p debug
 #SBATCH -N 1
-#SBATCH -t 00:2:00
+#SBATCH -t 01:00:00
 #SBATCH --cpu-freq=1400000
 #SBATCH -J job-@BENCHMARK@
 #SBATCH -o job-@BENCHMARK@.o%j
@@ -13,4 +13,5 @@
 export OMP_NUM_THREADS=68
 export OMP_PLACES=cores
 export OMP_PROC_BIND=spread
+
 srun -N 1 -n 1 -c 68 ./benchmark-@BENCHMARK@
