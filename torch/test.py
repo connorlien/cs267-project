@@ -44,9 +44,6 @@ if not using_gpu:
     print("Number of CPU threads:", torch.get_num_threads())
 out1 = test_torch(*i)
 out2 = test_custom(*i)
-if using_gpu:
-    out1 = out1.cpu()
-    out2 = out2.cpu()
 
 # Test correctness
 eps = 1e-5
