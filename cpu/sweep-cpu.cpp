@@ -174,20 +174,14 @@ void benchmark(bool all_sizes = false)
     }
     else
     {
-        tensor_sizes.assign({127, 256, 512});
+        tensor_sizes.assign({512});
 
         kernel_sizes.assign({3});
-        bbpw.assign({1, 4, 16, 64, 128});
-        wbpw.assign({1, 50, 200, 500});
-        hbpw.assign({1, 50, 200, 500});
-        cbpw.assign({1, 2, 6, 16});
 
-        bbdw.assign({1, 4, 16, 64, 128});
-        cbdw.assign({1, 2, 4, 8, 16});
-        hbdw.assign({1, 10, 50, 100});
-        wbdw.assign({1, 10, 50, 100, 200, 500});
-        hfdw.assign({1, 5, 10});
-        wfbd.assign({1, 5, 10});
+        bbpw.assign({4, 64, 128, 2000});
+        wbpw.assign({50, 250, 500, 2000});
+        bbdw.assign({4, 64, 128, 2000});
+        wbdw.assign({50, 250, 500, 2000});
     }
 
     std::sort(tensor_sizes.begin(), tensor_sizes.end());
@@ -198,15 +192,15 @@ void benchmark(bool all_sizes = false)
     /* Set a seed. */
     int seed = 0;
 
-    fprintf(stdout, "Starting benchmarking...\n");
+    //fprintf(stdout, "Starting benchmarking...\n");
 
     /* Set default variables and allocate space. */
     int B = 128;
-    int C_in = 10;
+    int C_in = 3;
     int W_in = 4;
     int H_in = 4;
 
-    int C_out = 10;
+    int C_out = 3;
     int W_out = 2;
     int H_out = 2;
 
@@ -240,16 +234,23 @@ void benchmark(bool all_sizes = false)
     wfbd.assign({1, 5, 10});
     */
 
+    int best_b = 1;
+    int best_w = 1;
+    int best_c = 1;
+    int best_wf = 1;
+    double fastest = 1000000.0;
+
     for (int b_pw : bbpw)
     {
         for (int w_pw : wbpw)
         {
-            for (int h_pw : hbpw)
+            for (int b_dw : bbdw)
             {
-                for (int c_pw : cbpw)
+                for (int w_dw : wbdw)
                 {
-                    init_conv(b_pw, 1, w_pw, h_pw, c_pw, 1, 1, 1, 1, 1, 1, 1);
-                    fprintf(stdout, "PW Blocking params: %d %d %d %d \n", b_pw, w_pw, h_pw, c_pw);
+                    // int bbpw, int fbpw, int wbpw, int hbpw, int cbpw, int bbdw, int cbdw, int fdw, int hbdw, int wbdw, int hfdw, int wfbdw
+                    init_conv(b_pw, -1, w_pw, w_pw, -1, b_dw, -1, -1, w_dw, w_dw, -1, -1);
+                    fprintf(stdout, "DW Blocking params: %d %d %d %d \n", b_pw, w_pw, b_dw, w_dw);
                     double total_sweep = 0.0;
                     for (int k : kernel_sizes)
                     {
@@ -299,11 +300,22 @@ void benchmark(bool all_sizes = false)
                             idx += 1;
                         }
                     }
-                    fprintf(stdout, "Total time across runs: %f", total_sweep);
+                    fprintf(stdout, "Total time across runs: %f\n\n", total_sweep);
+                    if (total_sweep < fastest)
+                    {
+                        
+                        fastest = total_sweep;
+                        best_b = b_pw;
+                        best_w = w_pw;
+                        best_c = b_dw;
+                        best_wf = w_dw;
+                        fprintf(stdout, "Runtime improved to %f with params: %d %d %d %d \n", total_sweep, best_b, best_w, best_c, best_wf);
+                    }
                 }
             }
         }
     }
+    fprintf(stdout, "FASTEST RUNTIME %f with params: %d %d %d %d \n", fastest, best_b, best_w, best_c, best_wf);
 }
 
 void run(int argc, char **argv)
