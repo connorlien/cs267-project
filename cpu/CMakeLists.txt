@@ -16,7 +16,7 @@ endif ()
 add_library(benchmark OBJECT benchmark-cpu.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
 
-foreach (BENCHMARK IN ITEMS direct single blocked microkernel omp single-blocked simd)
+foreach (BENCHMARK IN ITEMS direct single blocked microkernel omp single-blocked simd unroll)
     # Create benchmarking executable
     add_executable(benchmark-${BENCHMARK} dws-${BENCHMARK}.cpp)
     target_link_libraries(benchmark-${BENCHMARK} PRIVATE benchmark OpenMP::OpenMP_CXX)
