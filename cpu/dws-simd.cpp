@@ -352,3 +352,4 @@ void dws_conv(float *X, float *F_DW, float *F_1D, float *O, int B, int H_in, int
     // _mm_free(F_1D_aligned);
     // _mm_free(O_aligned);
 }
+

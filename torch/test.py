@@ -7,11 +7,12 @@ from dws import DwsConv
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def get_input(B, H, W):
+    C = 3
     args = [2.0, 4.0, 4.0, 3.0, 2.0, 2.0, 1.0, 2.0, 2.0, 3.0, 2.0, 2.0]
-    X = torch.rand(B, 3, H, W, requires_grad=False).to(device)
-    F2d = torch.rand(3, 1, 2, 2, requires_grad=False).to(device)
-    F1d = torch.rand(3, 3, 1, 1, requires_grad=False).to(device)
-    Y = torch.rand(B, 3, H, W, requires_grad=False).to(device)
+    X = torch.rand(B, C, H, W, requires_grad=False).to(device)
+    F2d = torch.rand(C, 1, 2, 2, requires_grad=False).to(device)
+    F1d = torch.rand(C, C, 1, 1, requires_grad=False).to(device)
+    Y = torch.rand(B, C, H, W, requires_grad=False).to(device)
     return args, X, F2d, F1d, Y
 
 def test_torch(args, X, F2d, F1d, Y):

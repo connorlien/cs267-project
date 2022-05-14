@@ -19,7 +19,7 @@ class Block(nn.Module):
     """
     def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
         super().__init__()
-        self.dwconv = DwsConv(in_channels=dim, out_channels=dim, kernel_size=7, stride=1)
+        self.dwconv = DwsConv(in_channels=dim, out_channels=dim, kernel_size=7, stride=1, pad = 3)
         self.gamma = nn.Parameter(layer_scale_init_value * torch.ones((dim)), 
                                     requires_grad=True) if layer_scale_init_value > 0 else None
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
