@@ -1,2 +1,3 @@
 # cs267-project
-Communication-optimal depthwise-separable convolutions
+
+Communication-avoiding depthwise-separable convolutions
